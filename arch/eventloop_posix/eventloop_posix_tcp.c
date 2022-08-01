@@ -897,7 +897,7 @@ TCP_openConnection(UA_ConnectionManager *cm, const UA_KeyValueMap *params,
     UA_LOCK(&el->elMutex);
 
     if(cm->eventSource.state != UA_EVENTSOURCESTATE_STARTED) {
-        UA_LOG_ERROR(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_ERROR0(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
                      "TCP\t| Cannot open a connection for a "
                      "ConnectionManager that is not started");
         UA_UNLOCK(&el->elMutex);
@@ -1017,7 +1017,7 @@ static UA_StatusCode
 TCP_eventSourceDelete(UA_ConnectionManager *cm) {
     UA_POSIXConnectionManager *pcm = (UA_POSIXConnectionManager*)cm;
     if(cm->eventSource.state >= UA_EVENTSOURCESTATE_STARTING) {
-        UA_LOG_ERROR(cm->eventSource.eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
+        UA_LOG_ERROR0(cm->eventSource.eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
                      "TCP\t| The EventSource must be stopped before it can be deleted");
         return UA_STATUSCODE_BADINTERNALERROR;
     }

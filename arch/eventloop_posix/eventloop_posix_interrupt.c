@@ -390,7 +390,7 @@ startPOSIXInterruptManager(UA_EventSource *es) {
 
     /* Check the state */
     if(es->state != UA_EVENTSOURCESTATE_STOPPED) {
-        UA_LOG_ERROR(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
+        UA_LOG_ERROR0(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
                      "Interrupt\t| To start the InterruptManager, "
                      "it has to be registered in an EventLoop and not started");
         UA_UNLOCK(&el->elMutex);
@@ -446,7 +446,7 @@ startPOSIXInterruptManager(UA_EventSource *es) {
     pim->readFD.eventSourceCB = executeTriggeredPOSIXInterrupts;
     res = UA_EventLoopPOSIX_registerFD(el, &pim->readFD);
     if(res != UA_STATUSCODE_GOOD) {
-        UA_LOG_ERROR(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
+        UA_LOG_ERROR0(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
                      "Interrupt\t| Could not register the InterruptManager socket");
         UA_close(pipefd[0]);
         UA_close(pipefd[1]);
@@ -509,7 +509,7 @@ freePOSIXInterruptmanager(UA_EventSource *es) {
     UA_LOCK_ASSERT(&el->elMutex, 1);
 
     if(es->state >= UA_EVENTSOURCESTATE_STARTING) {
-        UA_LOG_ERROR(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
+        UA_LOG_ERROR0(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
                      "Interrupt\t| The EventSource must be stopped "
                      "before it can be deleted");
         return UA_STATUSCODE_BADINTERNALERROR;
