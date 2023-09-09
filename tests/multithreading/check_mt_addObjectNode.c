@@ -6,6 +6,8 @@
 #include <open62541/client_config_default.h>
 #include <open62541/client_highlevel.h>
 #include <check.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "thread_wrapper.h"
 #include "deviceObjectType.h"
 
@@ -17,6 +19,7 @@
 static void setup(void) {
     tc.running = true;
     tc.server = UA_Server_new();
+    ck_assert(tc.server != NULL);
     UA_ServerConfig_setDefault(UA_Server_getConfig(tc.server));
     defineObjectTypes();
     addPumpTypeConstructor(tc.server);

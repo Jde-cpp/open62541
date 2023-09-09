@@ -18,7 +18,6 @@
  * / OPC UA services to interact with the information model. */
 
 #include <open62541/util.h>
-#include "aa_tree.h"
 
 _UA_BEGIN_DECLS
 
@@ -322,12 +321,19 @@ typedef struct {
                                * if the target is remote. */
 } UA_ReferenceTarget;
 
-typedef struct {
+typedef struct UA_ReferenceTargetTreeElem {
     UA_ReferenceTarget target;   /* Has to be the first entry */
     UA_UInt32 targetIdHash;      /* Hash of the targetId */
-    struct aa_entry idTreeEntry; /* Binary-Tree for fast lookup */
-    struct aa_entry nameTreeEntry;
+    struct {
+        struct UA_ReferenceTargetTreeElem *left;
+        struct UA_ReferenceTargetTreeElem *right;
+    } idTreeEntry;
+    struct {
+        struct UA_ReferenceTargetTreeElem *left;
+        struct UA_ReferenceTargetTreeElem *right;
+    } nameTreeEntry;
 } UA_ReferenceTargetTreeElem;
+
 
 /* List of reference targets with the same reference type and direction. Uses
  * either an array or a tree structure. The SDK will not change the type of
@@ -342,10 +348,14 @@ typedef struct {
          * known to be small. */
         UA_ReferenceTarget *array;
 
-        /* Organize the references in a tree for fast lookup */
+        /* Organize the references in a tree for fast lookup. Use
+         * UA_Node_addReference and UA_Node_deleteReference to modify the
+         * tree-structure. The binary tree implementation (and absolute ordering
+         * / duplicate browseNames are allowed) are not exposed otherwise in the
+         * public API. */
         struct {
-            struct aa_entry *idTreeRoot;   /* Fast lookup based on the target id */
-            struct aa_entry *nameTreeRoot; /* Fast lookup based on the target browseName*/
+            UA_ReferenceTargetTreeElem *idRoot;   /* Lookup based on target id */
+            UA_ReferenceTargetTreeElem *nameRoot; /* Lookup based on browseName*/
         } tree;
     } targets;
     size_t targetsSize;
@@ -354,17 +364,18 @@ typedef struct {
     UA_Boolean isInverse;
 } UA_NodeReferenceKind;
 
-/* Iterate over the references. Assumes that "prev" points to a
- * NodeReferenceKind. If prev == NULL, the first element is returned. At the end
- * of the iteration, NULL is returned.
- *
- * Do not continue the iteration after the rk was modified. */
-UA_EXPORT const UA_ReferenceTarget *
-UA_NodeReferenceKind_iterate(const UA_NodeReferenceKind *rk,
-                             const UA_ReferenceTarget *prev);
+/* Iterate over the references. Aborts when the first callback return a non-NULL
+ * pointer and returns that pointer. Do not modify the reference targets during
+ * the iteration. */
+typedef void *
+(*UA_NodeReferenceKind_iterateCallback)(void *context, UA_ReferenceTarget *target);
 
-/* Returns the entry for the targetId or NULL if not found. This can be much
- * faster than _iterate if the references are in the tree-structure. */
+UA_EXPORT void *
+UA_NodeReferenceKind_iterate(UA_NodeReferenceKind *rk,
+                             UA_NodeReferenceKind_iterateCallback callback,
+                             void *context);
+
+/* Returns the entry for the targetId or NULL if not found */
 UA_EXPORT const UA_ReferenceTarget *
 UA_NodeReferenceKind_findTarget(const UA_NodeReferenceKind *rk,
                                 const UA_ExpandedNodeId *targetId);

@@ -6,7 +6,6 @@
  * Copyright (c) 2021 Linutronix GmbH (Author: Kurt Kanzenbach)
  */
 
-#include <open62541/plugin/pubsub_udp.h>
 #include <open62541/server_config_default.h>
 #include <open62541/server_pubsub.h>
 
@@ -18,9 +17,9 @@ UA_Server *server = NULL;
 
 static void setup(void) {
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig *config = UA_Server_getConfig(server);
     UA_ServerConfig_setDefault(config);
-    UA_ServerConfig_addPubSubTransportLayer(config, UA_PubSubTransportLayerUDPMP());
     UA_Server_run_startup(server);
 }
 
@@ -53,7 +52,7 @@ START_TEST(AddConnectionsWithMinimalValidIPv6Configuration){
     UA_PubSubConnectionConfig connectionConfig;
     memset(&connectionConfig, 0, sizeof(UA_PubSubConnectionConfig));
     connectionConfig.name = UA_STRING("UADP Connection");
-    UA_NetworkAddressUrlDataType networkAddressUrl = {UA_STRING_NULL, UA_STRING("opc.udp://[ff02::1:5]:4840/")};
+    UA_NetworkAddressUrlDataType networkAddressUrl = {UA_STRING_NULL, UA_STRING("opc.udp://[ff00::1:5]:4840/")};
     UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
                          &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]);
     connectionConfig.transportProfileUri = UA_STRING("http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp");
@@ -95,7 +94,7 @@ START_TEST(AddRemoveAddConnectionWithMinimalValidIPv6Configuration){
         UA_PubSubConnectionConfig connectionConfig;
         memset(&connectionConfig, 0, sizeof(UA_PubSubConnectionConfig));
         connectionConfig.name = UA_STRING("UADP Connection");
-        UA_NetworkAddressUrlDataType networkAddressUrl = {UA_STRING_NULL, UA_STRING("opc.udp://[ff02::1:5]:4840/")};
+        UA_NetworkAddressUrlDataType networkAddressUrl = {UA_STRING_NULL, UA_STRING("opc.udp://[ff00::1:5]:4840/")};
         UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
                              &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]);
         connectionConfig.transportProfileUri = UA_STRING("http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp");
@@ -191,8 +190,8 @@ START_TEST(AddSingleConnectionWithMaximalConfiguration){
     connectionConf.enabled = true;
     connectionConf.publisherIdType = UA_PUBLISHERIDTYPE_UINT64;
     connectionConf.publisherId.uint64 = 223344;
-    connectionConf.connectionPropertiesSize = 3;
-    connectionConf.connectionProperties = connectionOptions;
+    connectionConf.connectionProperties.mapSize = 3;
+    connectionConf.connectionProperties.map = connectionOptions;
     connectionConf.address = address;
     UA_NodeId connection;
     UA_StatusCode retVal = UA_Server_addPubSubConnection(server, &connectionConf, &connection);
@@ -223,8 +222,8 @@ START_TEST(GetMaximalConnectionConfigurationAndCompareValues){
     connectionConf.enabled = true;
     connectionConf.publisherIdType = UA_PUBLISHERIDTYPE_UINT64;
     connectionConf.publisherId.uint64 = 223344;
-    connectionConf.connectionPropertiesSize = 3;
-    connectionConf.connectionProperties = connectionOptions;
+    connectionConf.connectionProperties.mapSize = 3;
+    connectionConf.connectionProperties.map = connectionOptions;
     connectionConf.address = address;
     UA_NodeId connection;
     UA_StatusCode retVal = UA_Server_addPubSubConnection(server, &connectionConf, &connection);
@@ -233,15 +232,15 @@ START_TEST(GetMaximalConnectionConfigurationAndCompareValues){
     memset(&connectionConfig, 0, sizeof(UA_PubSubConnectionConfig));
     retVal |= UA_Server_getPubSubConnectionConfig(server, connection, &connectionConfig);
     ck_assert_int_eq(retVal, UA_STATUSCODE_GOOD);
-    ck_assert(connectionConfig.connectionPropertiesSize == connectionConf.connectionPropertiesSize);
+    ck_assert(connectionConfig.connectionProperties.mapSize == connectionConf.connectionProperties.mapSize);
     ck_assert(UA_String_equal(&connectionConfig.name, &connectionConf.name) == UA_TRUE);
     ck_assert(UA_String_equal(&connectionConfig.transportProfileUri, &connectionConf.transportProfileUri) == UA_TRUE);
     UA_NetworkAddressUrlDataType networkAddressUrlDataCopy = *((UA_NetworkAddressUrlDataType *)connectionConfig.address.data);
     ck_assert(UA_calcSizeBinary(&networkAddressUrlDataCopy, &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]) ==
               UA_calcSizeBinary(&networkAddressUrlData, &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]));
-    for(size_t i = 0; i < connectionConfig.connectionPropertiesSize; i++){
-        ck_assert(UA_String_equal(&connectionConfig.connectionProperties[i].key.name, &connectionConf.connectionProperties[i].key.name) == UA_TRUE);
-        ck_assert(UA_Variant_calcSizeBinary(&connectionConfig.connectionProperties[i].value) == UA_Variant_calcSizeBinary(&connectionConf.connectionProperties[i].value));
+    for(size_t i = 0; i < connectionConfig.connectionProperties.mapSize; i++){
+        ck_assert(UA_String_equal(&connectionConfig.connectionProperties.map[i].key.name, &connectionConf.connectionProperties.map[i].key.name) == UA_TRUE);
+        ck_assert(UA_Variant_calcSizeBinary(&connectionConfig.connectionProperties.map[i].value) == UA_Variant_calcSizeBinary(&connectionConf.connectionProperties.map[i].value));
     }
     UA_PubSubConnectionConfig_clear(&connectionConfig);
     } END_TEST
@@ -270,7 +269,6 @@ int main(void) {
     suite_add_tcase(s, tc_add_pubsub_connections_minimal_config);
     suite_add_tcase(s, tc_add_pubsub_connections_invalid_config);
     suite_add_tcase(s, tc_add_pubsub_connections_maximal_config);
-    //suite_add_tcase(s, tc_decode);
 
     SRunner *sr = srunner_create(s);
     srunner_set_fork_status(sr, CK_NOFORK);

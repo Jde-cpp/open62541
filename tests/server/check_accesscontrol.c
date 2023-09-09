@@ -6,8 +6,10 @@
 #include <open62541/client_config_default.h>
 #include <open62541/server.h>
 #include <open62541/server_config_default.h>
+#include <open62541/plugin/accesscontrol_default.h>
 #include <open62541/types.h>
 
+#include <stdlib.h>
 #include <check.h>
 
 #include "thread_wrapper.h"
@@ -15,6 +17,11 @@
 UA_Server *server;
 UA_Boolean running;
 THREAD_HANDLE server_thread;
+
+static const size_t usernamePasswordsSize = 2;
+static UA_UsernamePasswordLogin usernamePasswords[2] = {
+    {UA_STRING_STATIC("user1"), UA_STRING_STATIC("password")},
+    {UA_STRING_STATIC("user2"), UA_STRING_STATIC("password1")}};
 
 THREAD_CALLBACK(serverloop) {
     while(running)
@@ -25,7 +32,14 @@ THREAD_CALLBACK(serverloop) {
 static void setup(void) {
     running = true;
     server = UA_Server_new();
-    UA_ServerConfig_setDefault(UA_Server_getConfig(server));
+    ck_assert(server != NULL);
+
+    /* Instatiate a new AccessControl plugin that knows username/pw */
+    UA_ServerConfig *config = UA_Server_getConfig(server);
+    UA_SecurityPolicy *sp = &config->securityPolicies[config->securityPoliciesSize-1];
+    UA_AccessControl_default(config, true, &sp->policyUri,
+                             usernamePasswordsSize, usernamePasswords);
+
     UA_Server_run_startup(server);
     THREAD_CREATE(server_thread, serverloop);
 }

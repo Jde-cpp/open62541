@@ -4,6 +4,7 @@
 
 #include <open62541/client_config_default.h>
 #include <open62541/server_config_default.h>
+#include <open62541/plugin/accesscontrol_default.h>
 
 #include "client/ua_client_internal.h"
 #include "ua_server_internal.h"
@@ -17,6 +18,11 @@
 UA_Server *server;
 UA_Boolean running;
 THREAD_HANDLE server_thread;
+
+static const size_t usernamePasswordsSize = 2;
+static UA_UsernamePasswordLogin usernamePasswords[2] = {
+    {UA_STRING_STATIC("user1"), UA_STRING_STATIC("password")},
+    {UA_STRING_STATIC("user2"), UA_STRING_STATIC("password1")}};
 
 static void
 addVariable(size_t size) {
@@ -56,7 +62,14 @@ THREAD_CALLBACK(serverloop) {
 static void setup(void) {
     running = true;
     server = UA_Server_new();
-    UA_ServerConfig_setDefault(UA_Server_getConfig(server));
+    ck_assert(server != NULL);
+
+    /* Instatiate a new AccessControl plugin that knows username/pw */
+    UA_ServerConfig *config = UA_Server_getConfig(server);
+    UA_SecurityPolicy *sp = &config->securityPolicies[config->securityPoliciesSize-1];
+    UA_AccessControl_default(config, true, &sp->policyUri,
+                             usernamePasswordsSize, usernamePasswords);
+
     UA_Server_run_startup(server);
     addVariable(VARLENGTH);
     THREAD_CREATE(server_thread, serverloop);
@@ -68,6 +81,25 @@ static void teardown(void) {
     UA_Server_run_shutdown(server);
     UA_Server_delete(server);
 }
+
+START_TEST(ClientConfig_Copy){
+    UA_ClientConfig dstConfig;
+    memset(&dstConfig, 0, sizeof(UA_ClientConfig));
+    UA_ClientConfig srcConfig;
+    memset(&srcConfig, 0, sizeof(UA_ClientConfig));
+    UA_ClientConfig_setDefault(&srcConfig);
+
+    UA_StatusCode retval = UA_ClientConfig_copy(&srcConfig, &dstConfig);
+    ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+
+    UA_Client *dstConfigClient = UA_Client_newWithConfig(&dstConfig);
+    retval = UA_Client_connect(dstConfigClient, "opc.tcp://localhost:4840");
+    ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+    UA_Client_disconnect(dstConfigClient);
+    UA_Client_delete(dstConfigClient);
+    UA_ApplicationDescription_clear(&srcConfig.clientDescription);
+}
+END_TEST
 
 START_TEST(Client_connect) {
     UA_Client *client = UA_Client_new();
@@ -198,7 +230,7 @@ START_TEST(Client_renewSecureChannelWithActiveSubscription) {
     UA_Client *client = UA_Client_new();
     UA_ClientConfig_setDefault(UA_Client_getConfig(client));
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-    cc->secureChannelLifeTime = 10000;
+    cc->secureChannelLifeTime = 60000;
 
     UA_StatusCode retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
@@ -412,6 +444,7 @@ static Suite* testSuite_Client(void) {
     Suite *s = suite_create("Client");
     TCase *tc_client = tcase_create("Client Basic");
     tcase_add_checked_fixture(tc_client, setup, teardown);
+    tcase_add_test(tc_client, ClientConfig_Copy);
     tcase_add_test(tc_client, Client_connect);
     tcase_add_test(tc_client, Client_connect_username);
     tcase_add_test(tc_client, Client_delete_without_connect);

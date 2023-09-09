@@ -8,6 +8,7 @@
 #include "ua_server_internal.h"
 #include "ua_session.h"
 #include "ua_subscription.h"
+#include "itoa.h"
 
 #ifdef UA_ENABLE_DIAGNOSTICS
 
@@ -73,6 +74,8 @@ readSubscriptionDiagnostics(UA_Server *server,
                             const UA_NodeId *nodeId, void *nodeContext,
                             UA_Boolean sourceTimestamp,
                             const UA_NumericRange *range, UA_DataValue *value) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 0);
+
     /* Check the Subscription pointer */
     UA_Subscription *sub = (UA_Subscription*)nodeContext;
     if(!sub)
@@ -80,7 +83,7 @@ readSubscriptionDiagnostics(UA_Server *server,
 
     /* Read the BrowseName */
     UA_QualifiedName bn;
-    UA_StatusCode res = readWithReadValue(server, nodeId, UA_ATTRIBUTEID_BROWSENAME, &bn);
+    UA_StatusCode res = UA_Server_readBrowseName(server, *nodeId, &bn);
     if(res != UA_STATUSCODE_GOOD)
         return res;
 
@@ -123,14 +126,18 @@ readSubscriptionDiagnosticsArray(UA_Server *server,
                                  const UA_NodeId *nodeId, void *nodeContext,
                                  UA_Boolean sourceTimestamp,
                                  const UA_NumericRange *range, UA_DataValue *value) {
+    UA_LOCK(&server->serviceMutex);
+
     /* Get the current session */
     size_t sdSize = 0;
     UA_Session *session = NULL;
     session_list_entry *sentry;
     if(nodeContext) {
         session = getSessionById(server, sessionId);
-        if(!session)
+        if(!session) {
+            UA_UNLOCK(&server->serviceMutex);
             return UA_STATUSCODE_BADINTERNALERROR;
+        }
         sdSize = session->subscriptionsSize;
     } else {
         LIST_FOREACH(sentry, &server->sessions, pointers) {
@@ -141,8 +148,10 @@ readSubscriptionDiagnosticsArray(UA_Server *server,
     /* Allocate the output array */
     UA_SubscriptionDiagnosticsDataType *sd = (UA_SubscriptionDiagnosticsDataType*)
         UA_Array_new(sdSize, &UA_TYPES[UA_TYPES_SUBSCRIPTIONDIAGNOSTICSDATATYPE]);
-    if(!sd)
+    if(!sd) {
+        UA_UNLOCK(&server->serviceMutex);
         return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
 
     /* Collect the statistics */
     size_t i = 0;
@@ -165,6 +174,8 @@ readSubscriptionDiagnosticsArray(UA_Server *server,
     value->hasValue = true;
     UA_Variant_setArray(&value->value, sd, sdSize,
                         &UA_TYPES[UA_TYPES_SUBSCRIPTIONDIAGNOSTICSDATATYPE]);
+
+    UA_UNLOCK(&server->serviceMutex);
     return UA_STATUSCODE_GOOD;
 }
 
@@ -177,7 +188,7 @@ createSubscriptionObject(UA_Server *server, UA_Session *session,
     UA_NodeId hasComponent = UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT);
 
     char subIdStr[32];
-    snprintf(subIdStr, 32, "%u", sub->subscriptionId);
+    itoaUnsigned(sub->subscriptionId, subIdStr, 10);
 
     /* Find the NodeId of the SubscriptionDiagnosticsArray */
     UA_BrowsePath bp;
@@ -201,26 +212,26 @@ createSubscriptionObject(UA_Server *server, UA_Session *session,
     UA_QualifiedName browseName = UA_QUALIFIEDNAME(0, subIdStr);
     UA_NodeId typeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SUBSCRIPTIONDIAGNOSTICSTYPE);
     UA_NodeId objId = UA_NODEID_NUMERIC(1, 0); /* 0 => assign a random free id */
-    UA_StatusCode res = addNode(server, UA_NODECLASS_VARIABLE,
-                                &objId,
-                                &bpr.targets[0].targetId.nodeId /* parent */,
-                                &refId, browseName, &typeId,
-                                (UA_NodeAttributes*)&var_attr,
+    UA_StatusCode res = addNode(server, UA_NODECLASS_VARIABLE, objId,
+                                bpr.targets[0].targetId.nodeId,
+                                refId, browseName, typeId, &var_attr,
                                 &UA_TYPES[UA_TYPES_VARIABLEATTRIBUTES], NULL, &objId);
     UA_CHECK_STATUS(res, goto cleanup);
 
     /* Add a second reference from the overall SubscriptionDiagnosticsArray variable */
     const UA_NodeId subDiagArray =
         UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERDIAGNOSTICS_SUBSCRIPTIONDIAGNOSTICSARRAY);
-    res = addRef(server, session,  &subDiagArray, &refId, &objId, true);
+    res = addRefWithSession(server, session,  &subDiagArray, &refId, &objId, true);
+    if(res != UA_STATUSCODE_GOOD)
+        goto cleanup;
 
     /* Get all children (including the variable itself) and set the contenxt + callback */
     res = referenceTypeIndices(server, &hasComponent, &refTypes, false);
-    if(res != UA_STATUSCODE_GOOD)
-        goto cleanup;
-    res = browseRecursive(server, 1, &objId,
-                          UA_BROWSEDIRECTION_FORWARD, &refTypes,
-                          UA_NODECLASS_VARIABLE, true, &childrenSize, &children);
+    if(UA_LIKELY(res == UA_STATUSCODE_GOOD)) {
+        res = browseRecursive(server, 1, &objId,
+                              UA_BROWSEDIRECTION_FORWARD, &refTypes,
+                              UA_NODECLASS_VARIABLE, true, &childrenSize, &children);
+    }
     if(res != UA_STATUSCODE_GOOD)
         goto cleanup;
 
@@ -285,12 +296,16 @@ readSessionDiagnosticsArray(UA_Server *server,
                             const UA_NodeId *nodeId, void *nodeContext,
                             UA_Boolean sourceTimestamp,
                             const UA_NumericRange *range, UA_DataValue *value) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 0);
+
     /* Allocate the output array */
     UA_SessionDiagnosticsDataType *sd = (UA_SessionDiagnosticsDataType*)
         UA_Array_new(server->sessionCount,
                      &UA_TYPES[UA_TYPES_SESSIONDIAGNOSTICSDATATYPE]);
     if(!sd)
         return UA_STATUSCODE_BADOUTOFMEMORY;
+
+    UA_LOCK(&server->serviceMutex);
 
     /* Collect the statistics */
     size_t i = 0;
@@ -304,6 +319,8 @@ readSessionDiagnosticsArray(UA_Server *server,
     value->hasValue = true;
     UA_Variant_setArray(&value->value, sd, server->sessionCount,
                         &UA_TYPES[UA_TYPES_SESSIONDIAGNOSTICSDATATYPE]);
+
+    UA_UNLOCK(&server->serviceMutex);
     return UA_STATUSCODE_GOOD;
 }
 
@@ -312,6 +329,7 @@ setSessionSecurityDiagnostics(UA_Session *session,
                               UA_SessionSecurityDiagnosticsDataType *sd) {
     UA_SessionSecurityDiagnosticsDataType_copy(&session->securityDiagnostics, sd);
     UA_NodeId_copy(&session->sessionId, &sd->sessionId);
+    UA_String_copy(&session->clientUserIdOfSession, &sd->clientUserIdOfSession);
     UA_SecureChannel *channel = session->header.channel;
     if(channel) {
         UA_ByteString_copy(&channel->remoteCertificate, &sd->clientCertificate);
@@ -328,16 +346,22 @@ readSessionDiagnostics(UA_Server *server,
                        const UA_NodeId *nodeId, void *nodeContext,
                        UA_Boolean sourceTimestamp,
                        const UA_NumericRange *range, UA_DataValue *value) {
+    UA_LOCK(&server->serviceMutex);
+
     /* Get the Session */
     UA_Session *session = getSessionById(server, sessionId);
-    if(!session)
+    if(!session) {
+        UA_UNLOCK(&server->serviceMutex);
         return UA_STATUSCODE_BADINTERNALERROR;
+    }
 
     /* Read the BrowseName */
     UA_QualifiedName bn;
     UA_StatusCode res = readWithReadValue(server, nodeId, UA_ATTRIBUTEID_BROWSENAME, &bn);
-    if(res != UA_STATUSCODE_GOOD)
+    if(res != UA_STATUSCODE_GOOD) {
+        UA_UNLOCK(&server->serviceMutex);
         return res;
+    }
 
     union {
         UA_SessionDiagnosticsDataType sddt;
@@ -352,6 +376,7 @@ readSessionDiagnostics(UA_Server *server,
     size_t memberOffset;
     UA_Boolean found;
 
+#ifdef UA_ENABLE_SUBSCRIPTIONS
     if(equalBrowseName(&bn.name, "SubscriptionDiagnosticsArray")) {
         /* Reuse the datasource callback. Forward a non-null nodeContext to
          * indicate that we want to see only the subscriptions for the current
@@ -360,7 +385,9 @@ readSessionDiagnostics(UA_Server *server,
                                                nodeId, (void*)0x01,
                                                sourceTimestamp, range, value);
         goto cleanup;
-    } else if(equalBrowseName(&bn.name, "SessionDiagnostics")) {
+    } else
+#endif
+    if(equalBrowseName(&bn.name, "SessionDiagnostics")) {
         setSessionDiagnostics(session, &data.sddt);
         content = &data.sddt;
         type = &UA_TYPES[UA_TYPES_SESSIONDIAGNOSTICSDATATYPE];
@@ -412,6 +439,7 @@ readSessionDiagnostics(UA_Server *server,
 
  cleanup:
     UA_QualifiedName_clear(&bn);
+    UA_UNLOCK(&server->serviceMutex);
     return res;
 }
 
@@ -428,6 +456,8 @@ readSessionSecurityDiagnostics(UA_Server *server,
     if(!sd)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
+    UA_LOCK(&server->serviceMutex);
+
     /* Collect the statistics */
     size_t i = 0;
     session_list_entry *session;
@@ -440,6 +470,8 @@ readSessionSecurityDiagnostics(UA_Server *server,
     value->hasValue = true;
     UA_Variant_setArray(&value->value, sd, server->sessionCount,
                         &UA_TYPES[UA_TYPES_SESSIONSECURITYDIAGNOSTICSDATATYPE]);
+
+    UA_UNLOCK(&server->serviceMutex);
     return UA_STATUSCODE_GOOD;
 }
 
@@ -458,9 +490,8 @@ createSessionObject(UA_Server *server, UA_Session *session) {
     UA_QualifiedName browseName = UA_QUALIFIEDNAME(0, "");
     browseName.name = session->sessionName; /* shallow copy */
     UA_NodeId typeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SESSIONDIAGNOSTICSOBJECTTYPE);
-    UA_StatusCode res = addNode(server, UA_NODECLASS_OBJECT,
-                                &session->sessionId, &parentId, &refId, browseName, &typeId,
-                                (UA_NodeAttributes*)&object_attr,
+    UA_StatusCode res = addNode(server, UA_NODECLASS_OBJECT, session->sessionId,
+                                parentId, refId, browseName, typeId, &object_attr,
                                 &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES], NULL, NULL);
     if(res != UA_STATUSCODE_GOOD)
         goto cleanup;
@@ -514,6 +545,8 @@ readDiagnostics(UA_Server *server, const UA_NodeId *sessionId, void *sessionCont
     void *data = NULL;
     const UA_DataType *type = &UA_TYPES[UA_TYPES_UINT32]; /* Default */
 
+    UA_LOCK(&server->serviceMutex);
+
     switch(nodeId->identifier.numeric) {
     case UA_NS0ID_SERVER_SERVERDIAGNOSTICS_SERVERDIAGNOSTICSSUMMARY:
         server->serverDiagnosticsSummary.currentSessionCount =
@@ -558,12 +591,15 @@ readDiagnostics(UA_Server *server, const UA_NodeId *sessionId, void *sessionCont
         data = &server->serverDiagnosticsSummary.rejectedRequestsCount;
         break;
     default:
+        UA_UNLOCK(&server->serviceMutex);
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     UA_StatusCode res = UA_Variant_setScalarCopy(&value->value, data, type);
     if(res == UA_STATUSCODE_GOOD)
         value->hasValue = true;
+
+    UA_UNLOCK(&server->serviceMutex);
     return res;
 }
 

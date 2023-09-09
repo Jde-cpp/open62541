@@ -9,6 +9,7 @@
 #include <open62541/server_config_default.h>
 
 #include <check.h>
+#include <stdlib.h>
 
 #include "thread_wrapper.h"
 
@@ -29,6 +30,7 @@ THREAD_CALLBACK(serverloop) {
 static void setup(void) {
     running = true;
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig_setDefault(UA_Server_getConfig(server));
 
     ck_assert_uint_eq(2, UA_Server_addNamespace(server, CUSTOM_NS));
@@ -712,6 +714,11 @@ START_TEST(Node_ReadWrite_Symmetric) {
     retval = UA_Client_readSymmetricAttribute(client, nodeReadWriteTestHasSubSubType, &symmetric);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert_int_eq(symmetric, newSymmetric);
+
+    /* reset */
+    newSymmetric = false;
+    retval = UA_Client_writeSymmetricAttribute(client, nodeReadWriteTestHasSubSubType, &newSymmetric);
+    ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 }
 END_TEST
 

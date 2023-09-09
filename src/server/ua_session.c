@@ -44,6 +44,7 @@ void UA_Session_clear(UA_Session *session, UA_Server* server) {
     UA_Session_detachFromSecureChannel(session);
     UA_ApplicationDescription_clear(&session->clientDescription);
     UA_NodeId_clear(&session->header.authenticationToken);
+    UA_String_clear(&session->clientUserIdOfSession);
     UA_NodeId_clear(&session->sessionId);
     UA_String_clear(&session->sessionName);
     UA_ByteString_clear(&session->serverNonce);
@@ -197,7 +198,7 @@ UA_Session_getSubscriptionById(UA_Session *session, UA_UInt32 subscriptionId) {
 }
 
 UA_Subscription *
-UA_Server_getSubscriptionById(UA_Server *server, UA_UInt32 subscriptionId) {
+getSubscriptionById(UA_Server *server, UA_UInt32 subscriptionId) {
     UA_Subscription *sub;
     LIST_FOREACH(sub, &server->subscriptions, serverListEntry) {
         /* Prevent lookup of subscriptions that are to be deleted with a statuschange */
@@ -211,7 +212,7 @@ UA_Server_getSubscriptionById(UA_Server *server, UA_UInt32 subscriptionId) {
 
 UA_PublishResponseEntry*
 UA_Session_dequeuePublishReq(UA_Session *session) {
-    UA_PublishResponseEntry* entry = SIMPLEQ_FIRST(&session->responseQueue);
+    UA_PublishResponseEntry *entry = SIMPLEQ_FIRST(&session->responseQueue);
     if(entry) {
         SIMPLEQ_REMOVE_HEAD(&session->responseQueue, listEntry);
         session->responseQueueSize--;
@@ -240,7 +241,7 @@ UA_Server_closeSession(UA_Server *server, const UA_NodeId *sessionId) {
     UA_StatusCode res = UA_STATUSCODE_BADSESSIONIDINVALID;
     LIST_FOREACH(entry, &server->sessions, pointers) {
         if(UA_NodeId_equal(&entry->session.sessionId, sessionId)) {
-            UA_Server_removeSession(server, entry, UA_DIAGNOSTICEVENT_CLOSE);
+            UA_Server_removeSession(server, entry, UA_SHUTDOWNREASON_CLOSE);
             res = UA_STATUSCODE_GOOD;
             break;
         }
@@ -251,11 +252,12 @@ UA_Server_closeSession(UA_Server *server, const UA_NodeId *sessionId) {
 
 /* Session Attributes */
 
-#define UA_PROTECTEDATTRIBUTESSIZE 3
+#define UA_PROTECTEDATTRIBUTESSIZE 4
 static const UA_QualifiedName protectedAttributes[UA_PROTECTEDATTRIBUTESSIZE] = {
     {0, UA_STRING_STATIC("localeIds")},
     {0, UA_STRING_STATIC("clientDescription")},
-    {0, UA_STRING_STATIC("sessionName")}
+    {0, UA_STRING_STATIC("sessionName")},
+    {0, UA_STRING_STATIC("clientUserId")}
 };
 
 static UA_Boolean
@@ -289,8 +291,10 @@ UA_Server_deleteSessionAttribute(UA_Server *server, const UA_NodeId *sessionId,
         return UA_STATUSCODE_BADNOTWRITABLE;
     UA_LOCK(&server->serviceMutex);
     UA_Session *session = getSessionById(server, sessionId);
-    if(!session)
+    if(!session) {
+        UA_UNLOCK(&server->serviceMutex);
         return UA_STATUSCODE_BADSESSIONIDINVALID;
+    }
     UA_StatusCode res =
         UA_KeyValueMap_remove(session->attributes, key);
     UA_UNLOCK(&server->serviceMutex);
@@ -324,6 +328,11 @@ getSessionAttribute(UA_Server *server, const UA_NodeId *sessionId,
     } else if(UA_QualifiedName_equal(&key, &protectedAttributes[2])) {
         /* Return session name */
         UA_Variant_setScalar(&localAttr, &session->sessionName,
+                             &UA_TYPES[UA_TYPES_STRING]);
+        attr = &localAttr;
+    } else if(UA_QualifiedName_equal(&key, &protectedAttributes[3])) {
+        /* Return client user id */
+        UA_Variant_setScalar(&localAttr, &session->clientUserIdOfSession,
                              &UA_TYPES[UA_TYPES_STRING]);
         attr = &localAttr;
     } else {

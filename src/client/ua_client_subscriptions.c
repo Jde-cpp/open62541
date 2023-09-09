@@ -16,7 +16,11 @@
 
 #include "ua_client_internal.h"
 
-#ifdef UA_ENABLE_SUBSCRIPTIONS /* conditional compilation */
+struct UA_Client_MonitoredItem_ForDelete {
+    UA_Client *client;
+    UA_Client_Subscription *sub;
+    UA_UInt32 *monitoredItemId;
+};
 
 /*****************/
 /* Subscriptions */
@@ -252,17 +256,18 @@ UA_Client_Subscriptions_modify_async(UA_Client *client,
                                     cc, requestId);
 }
 
-static void
-UA_MonitoredItem_delete_wrapper(UA_Client_MonitoredItem *mon, void *data) {
+static void *
+UA_MonitoredItem_delete_wrapper(void *data, UA_Client_MonitoredItem *mon) {
     struct UA_Client_MonitoredItem_ForDelete *deleteMonitoredItem =
         (struct UA_Client_MonitoredItem_ForDelete *)data;
     if(deleteMonitoredItem != NULL) {
         if(deleteMonitoredItem->monitoredItemId != NULL &&
            (mon->monitoredItemId != *deleteMonitoredItem->monitoredItemId)) {
-            return;
+            return NULL;
         }
         MonitoredItem_delete(deleteMonitoredItem->client, deleteMonitoredItem->sub, mon);
     }
+    return NULL;
 }
 
 static void
@@ -505,7 +510,7 @@ ua_MonitoredItems_create(UA_Client *client, MonitoredItems_CreateData *data,
                 data->handlingCallbacks[i];
         newMon->isEventMonitoredItem =
             (request->itemsToCreate[i].itemToMonitor.attributeId == UA_ATTRIBUTEID_EVENTNOTIFIER);
-        ZIP_INSERT(MonitorItemsTree, &sub->monitoredItems, newMon, UA_UInt32_random());
+        ZIP_INSERT(MonitorItemsTree, &sub->monitoredItems, newMon);
 
         UA_LOG_DEBUG(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                      "Subscription %" PRIu32 " | Added a MonitoredItem with handle %" PRIu32,
@@ -659,11 +664,11 @@ createDataChanges_async(UA_Client *client, const UA_CreateMonitoredItemsRequest 
         return res;
     }
 
-    return __Client_AsyncServiceEx(client, &data->request,
-                                   &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSREQUEST],
-                                   ua_MonitoredItems_create_async_handler,
-                                   &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSRESPONSE],
-                                   data, requestId, client->config.timeout);
+    return __Client_AsyncService(client, &data->request,
+                                 &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSREQUEST],
+                                 ua_MonitoredItems_create_async_handler,
+                                 &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSRESPONSE],
+                                 data, requestId);
 }
 
 UA_CreateMonitoredItemsResponse
@@ -814,6 +819,7 @@ ua_MonitoredItems_delete(UA_Client *client, UA_Client_Subscription *sub,
 
 static void
 ua_MonitoredItems_delete_handler(UA_Client *client, void *d, UA_UInt32 requestId, void *r) {
+    UA_Client_Subscription *sub = NULL;
     CustomCallback *cc = (CustomCallback *)d;
     UA_DeleteMonitoredItemsResponse *response = (UA_DeleteMonitoredItemsResponse *)r;
     UA_DeleteMonitoredItemsRequest *request =
@@ -824,7 +830,7 @@ ua_MonitoredItems_delete_handler(UA_Client *client, void *d, UA_UInt32 requestId
     if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD)
         goto cleanup;
 
-    UA_Client_Subscription *sub = findSubscription(client, request->subscriptionId);
+    sub = findSubscription(client, request->subscriptionId);
     if(!sub) {
         UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                     "No internal representation of subscription %" PRIu32,
@@ -929,15 +935,14 @@ UA_Client_MonitoredItems_deleteSingle(UA_Client *client, UA_UInt32 subscriptionI
     return retval;
 }
 
-static void
-UA_MonitoredItem_change_clientHandle(UA_Client_MonitoredItem *mon, void *data) {
+static void *
+UA_MonitoredItem_change_clientHandle(void *data, UA_Client_MonitoredItem *mon) {
     UA_MonitoredItemModifyRequest *monitoredItemModifyRequest =
         (UA_MonitoredItemModifyRequest *)data;
-    if(monitoredItemModifyRequest != NULL) {
-        if(mon->monitoredItemId == monitoredItemModifyRequest->monitoredItemId) {
-            monitoredItemModifyRequest->requestedParameters.clientHandle = mon->clientHandle;
-        }
-    }
+    if(monitoredItemModifyRequest &&
+       mon->monitoredItemId == monitoredItemModifyRequest->monitoredItemId)
+        monitoredItemModifyRequest->requestedParameters.clientHandle = mon->clientHandle;
+    return NULL;
 }
 
 UA_ModifyMonitoredItemsResponse
@@ -1343,7 +1348,7 @@ void
 __Client_Subscriptions_backgroundPublish(UA_Client *client) {
     UA_LOCK_ASSERT(&client->clientMutex, 1);
 
-    if(client->sessionState < UA_SESSIONSTATE_ACTIVATED)
+    if(client->sessionState != UA_SESSIONSTATE_ACTIVATED)
         return;
 
     /* The session must have at least one subscription */
@@ -1355,28 +1360,25 @@ __Client_Subscriptions_backgroundPublish(UA_Client *client) {
         if(!request)
             return;
 
-        request->requestHeader.timeoutHint = 60000;
+        /* Publish requests are valid for 10 minutes */
+        request->requestHeader.timeoutHint = 10 * 60 * 1000;
+
         UA_StatusCode retval = __Client_preparePublishRequest(client, request);
         if(retval != UA_STATUSCODE_GOOD) {
             UA_PublishRequest_delete(request);
             return;
         }
 
-        UA_UInt32 requestId;
-        client->currentlyOutStandingPublishRequests++;
-
-        /* Disable the timeout, it is treat in
-         * UA_Client_Subscriptions_backgroundPublishInactivityCheck */
-        retval = __Client_AsyncServiceEx(client, request,
+        retval = __Client_AsyncService(client, request,
                                          &UA_TYPES[UA_TYPES_PUBLISHREQUEST],
                                          processPublishResponseAsync,
                                          &UA_TYPES[UA_TYPES_PUBLISHRESPONSE],
-                                         (void*)request, &requestId, 0);
+                                         (void*)request, NULL);
         if(retval != UA_STATUSCODE_GOOD) {
             UA_PublishRequest_delete(request);
             return;
         }
+
+        client->currentlyOutStandingPublishRequests++;
     }
 }
-
-#endif /* UA_ENABLE_SUBSCRIPTIONS */

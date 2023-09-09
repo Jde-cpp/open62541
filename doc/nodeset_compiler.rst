@@ -292,7 +292,7 @@ Here are some examples for the ``DI`` and ``PLCOpen`` nodesets::
     # Generate types and namespace for DI
     ua_generate_nodeset_and_datatypes(
         NAME "di"
-        FILE_CSV "${UA_NODESET_DIR}/DI/OpcUaDiModel.csv"
+        FILE_CSV "${UA_NODESET_DIR}/DI/Opc.Ua.Di.NodeIds.csv"
         FILE_BSD "${UA_NODESET_DIR}/DI/Opc.Ua.Di.Types.bsd"
         NAMESPACE_MAP "2:http://opcfoundation.org/UA/DI/"
         FILE_NS "${UA_NODESET_DIR}/DI/Opc.Ua.Di.NodeSet2.xml"
@@ -401,7 +401,7 @@ This DI nodeset makes use of some additional data types in ``deps/ua-nodeset/DI/
         NAME "ua_types_di"
         TARGET_SUFFIX "types-di"
         NAMESPACE_MAP "2:http://opcfoundation.org/UA/DI/"
-        FILE_CSV "${UA_NODESET_DIR}/DI/OpcUaDiModel.csv"
+        FILE_CSV "${UA_NODESET_DIR}/DI/Opc.Ua.Di.NodeIds.csv"
         FILES_BSD "${UA_NODESET_DIR}/DI/Opc.Ua.Di.Types.bsd"
     )
 
@@ -476,3 +476,29 @@ Finally you need to include all these files in your build process and call the c
     }
 
     retval = UA_Server_run(server, &running);
+
+
+Automatic Nodesetinjection
+................................
+
+The nodesetinjector is a mechanism for automatically loading nodeset/companion specifications during server initialization.
+It provides a fast and easy way to load nodesets in all applications, focusing on the official OPCFoundation/UANodeset Repository ( https://github.com/OPCFoundation/UA-Nodeset ).
+Specify the required information models using CMake.
+
+Which nodesets are to be loaded is determined by the Cmake flag ``DUA_INFORMATION_MODEL_AUTOLOAD``. All nodesets that are to be loaded automatically are listed here.
+The naming is based on the folder name of the Companion Specification in the ua-nodeset folder.
+
+A CMake call could look like this.
+
+.. code-block:: bash
+
+    -DCMAKE_BUILD_TYPE=Debug
+    -DUA_BUILD_EXAMPLES=ON
+    -DUA_INFORMATION_MODEL_AUTOLOAD=DI;POWERLINK;PROFINET;MachineVision
+    -DUA_NAMESPACE_ZERO=FULL
+
+The order of nodesets is important! Nodesets that build on other nodesets must be placed after them in the list.
+The following nodesets are currently supported.
+
+* DI, ISA95-JOBCONTROL, OpenSCS, DEXPI, AMB, AutoID, POWERLINK, IA, Machinery, PackML, PNEM, PLCopen, MachineTool, PROFINET, MachineVision, FDT, CommercialKitchenEquipment,
+PNRIO, Scales, Weihenstephan, Pumps, CAS, TMC, IJT

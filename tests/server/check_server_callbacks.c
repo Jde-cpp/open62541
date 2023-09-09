@@ -6,8 +6,10 @@
 #include <open62541/plugin/log_stdout.h>
 #include <open62541/client_config_default.h>
 #include <open62541/client_highlevel.h>
-#include <check.h>
 #include "thread_wrapper.h"
+
+#include <stdlib.h>
+#include <check.h>
 
 /* While server initialization, value callbacks are called twice.
  * This counter is used to ensure that the deletion of the variable is triggered by the client (not while the server initialization)*/
@@ -222,6 +224,7 @@ THREAD_CALLBACK(serverloop) {
 static void setup(void) {
     running = true;
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig_setDefault(UA_Server_getConfig(server));
     UA_Server_run_startup(server);
     addCurrentTimeVariable();

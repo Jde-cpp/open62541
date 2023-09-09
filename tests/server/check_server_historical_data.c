@@ -19,6 +19,8 @@
 #include "server/ua_server_internal.h"
 
 #include <check.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "testing_clock.h"
 #include "thread_wrapper.h"
@@ -48,6 +50,7 @@ static void setup(void) {
     running = true;
 
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig *config = UA_Server_getConfig(server);
     UA_ServerConfig_setDefault(config);
 

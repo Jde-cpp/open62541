@@ -13,6 +13,7 @@
  *    Copyright 2018 (c) Thomas Stalder, Blue Time Concept SA
  *    Copyright 2018 (c) Kalycito Infotech Private Limited
  *    Copyright 2020 (c) Christian von Arnim, ISW University of Stuttgart
+ *    Copyright 2022 (c) Linutronix GmbH (Author: Muddasir Shakil)
  */
 
 #ifndef UA_CLIENT_H_
@@ -22,7 +23,6 @@
 #include <open62541/common.h>
 
 #include <open62541/plugin/log.h>
-#include <open62541/plugin/network.h>
 #include <open62541/plugin/eventloop.h>
 #include <open62541/plugin/securitypolicy.h>
 
@@ -69,13 +69,25 @@ _UA_BEGIN_DECLS
 
 typedef struct {
     void *clientContext; /* User-defined pointer attached to the client */
-    UA_Logger logger;    /* Logger used by the client */
-    UA_UInt32 timeout;   /* Response timeout in ms */
+    UA_Logger logger;    /* Logger used by the client.
+                            logger is deprecated but still supported at this time.
+                            Use logging pointer instead. */
+    UA_Logger *logging; /* If NULL and "logger" is set, make this point to "logger" */
+
+    /* Response timeout in ms (0 -> no timeout). If the server does not answer a
+     * request within this time a StatusCode UA_STATUSCODE_BADTIMEOUT is
+     * returned. This timeout can be overridden for individual requests by
+     * setting a non-null "timeoutHint" in the request header. */
+    UA_UInt32 timeout;
 
     /* The description must be internally consistent.
      * - The ApplicationUri set in the ApplicationDescription must match the
      *   URI set in the certificate */
     UA_ApplicationDescription clientDescription;
+
+    /* The endpoint for the client to connect to.
+     * Such as "opc.tcp://host:port". */
+    UA_String endpointUrl;
 
     /**
      * Connection configuration
@@ -94,6 +106,13 @@ typedef struct {
                                   * empty string indicates the client to select
                                   * any matching SecurityPolicy. */
 
+    UA_Boolean noSession;   /* Only open a SecureChannel, but no Session */
+    UA_Boolean noReconnect; /* Don't reconnect SecureChannel when the connection
+                             * is lost without explicitly closing. */
+    UA_Boolean noNewSession; /* Don't automatically create a new Session when
+                              * the intial one is lost. Instead abort the
+                              * connection when the Session is lost. */
+
     /**
      * If either endpoint or userTokenPolicy has been set (at least one non-zero
      * byte in either structure), then the selected Endpoint and UserTokenPolicy
@@ -108,6 +127,15 @@ typedef struct {
      * when the SecureChannel was broken. */
     UA_EndpointDescription endpoint;
     UA_UserTokenPolicy userTokenPolicy;
+
+    /**
+     * If the EndpointDescription has not been defined, the ApplicationURI
+     * constrains the servers considered in the FindServers service and the
+     * Endpoints considered in the GetEndpoints service.
+     *
+     * If empty the applicationURI is not used to filter.
+     */
+    UA_String applicationUri;
 
     /**
      * Custom Data Types
@@ -169,7 +197,6 @@ typedef struct {
      * attempt to recreate a healthy connection. */
     void (*inactivityCallback)(UA_Client *client);
 
-#ifdef UA_ENABLE_SUBSCRIPTIONS
     /* Number of PublishResponse queued up in the server */
     UA_UInt16 outStandingPublishRequests;
 
@@ -180,22 +207,70 @@ typedef struct {
     void (*subscriptionInactivityCallback)(UA_Client *client,
                                            UA_UInt32 subscriptionId,
                                            void *subContext);
-#endif
 
     UA_LocaleId *sessionLocaleIds;
     size_t sessionLocaleIdsSize;
 } UA_ClientConfig;
 
- /**
+/**
+ * @brief It makes a partial deep copy of the clientconfig. It makes a shallow
+ * copies of the plugins (logger, eventloop, securitypolicy).
+ *
+ * NOTE: It makes a shallow copy of all the plugins from source to destination.
+ * Therefore calling _clear on the dst object will also delete the plugins in src
+ * object.
+ */
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_copy(UA_ClientConfig const *src, UA_ClientConfig *dst);
+
+/**
+ * @brief It cleans the client config and frees the pointer.
+ */
+UA_EXPORT void
+UA_ClientConfig_delete(UA_ClientConfig *config);
+
+/**
+ * @brief It cleans the client config and deletes the plugins, whereas
+ * _copy makes a shallow copy of the plugins.
+ */
+UA_EXPORT void
+UA_ClientConfig_clear(UA_ClientConfig *config);
+
+/* Configure Username/Password for the Session authentication. Also see
+ * UA_ClientConfig_setAuthenticationCert for x509-based authentication, which is
+ * implemented as a plugin (as it can be based on different crypto
+ * libraries). */
+UA_INLINABLE( UA_StatusCode
+UA_ClientConfig_setAuthenticationUsername(UA_ClientConfig *config,
+                                          const char *username,
+                                          const char *password) ,{
+    UA_UserNameIdentityToken* identityToken = UA_UserNameIdentityToken_new();
+    if(!identityToken)
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    identityToken->userName = UA_STRING_ALLOC(username);
+    identityToken->password = UA_STRING_ALLOC(password);
+
+    UA_ExtensionObject_clear(&config->userIdentityToken);
+    UA_ExtensionObject_setValue(&config->userIdentityToken, identityToken,
+                                &UA_TYPES[UA_TYPES_USERNAMEIDENTITYTOKEN]);
+    return UA_STATUSCODE_GOOD;
+})
+
+/**
  * Client Lifecycle
  * ---------------- */
 
-/* The method UA_Client_new is defined in client_config_default.h. So default
- * plugins outside of the core library (for logging, etc) are already available
- * during the initialization.
+/* Create a new client with a default configuration that adds plugins for
+ * networking, security, logging and so on. See `client_config_default.h` for
+ * more detailed options.
  *
- * UA_Client UA_EXPORT * UA_Client_new(void);
- */
+ * The default configuration can be used as the starting point to adjust the
+ * client configuration to individual needs. UA_Client_new is implemented in the
+ * /plugins folder under the CC0 license. Furthermore the client confiugration
+ * only uses the public server API.
+ *
+ * @return Returns the configured client or NULL if an error occurs. */
+UA_EXPORT UA_Client * UA_Client_new(void);
 
 /* Creates a new client. Moves the config into the client with a shallow copy.
  * The config content is cleared together with the client. */
@@ -214,10 +289,10 @@ UA_EXPORT UA_ClientConfig *
 UA_Client_getConfig(UA_Client *client);
 
 /* Get the client context */
-static UA_INLINE void *
-UA_Client_getContext(UA_Client *client) {
+UA_INLINABLE( void *
+UA_Client_getContext(UA_Client *client) ,{
     return UA_Client_getConfig(client)->clientContext; /* Cannot fail */
-}
+})
 
 /* (Disconnect and) delete the client */
 void UA_EXPORT
@@ -236,6 +311,12 @@ UA_Client_delete(UA_Client *client);
  * If the connection fails unrecoverably (state->connectStatus is set to an
  * error), the client is no longer usable. Create a new client if required. */
 
+/* Connect with the client configuration. For the async connection, finish
+ * connecting via UA_Client_run_iterate (or manually running a configured
+ * external EventLoop). */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+__UA_Client_connect(UA_Client *client, UA_Boolean async);
+
 /* Connect to the server. First a SecureChannel is opened, then a Session. The
  * client configuration restricts the SecureChannel selection and contains the
  * UserIdentityToken for the Session.
@@ -243,48 +324,97 @@ UA_Client_delete(UA_Client *client);
  * @param client to use
  * @param endpointURL to connect (for example "opc.tcp://localhost:4840")
  * @return Indicates whether the operation succeeded or returns an error code */
-UA_StatusCode UA_EXPORT UA_THREADSAFE
-UA_Client_connect(UA_Client *client, const char *endpointUrl);
+UA_INLINABLE( UA_StatusCode
+UA_Client_connect(UA_Client *client, const char *endpointUrl), {
+    /* Update the configuration */
+    UA_ClientConfig *cc = UA_Client_getConfig(client);
+    cc->noSession = false; /* Open a Session */
+    UA_String_clear(&cc->endpointUrl);
+    cc->endpointUrl = UA_STRING_ALLOC(endpointUrl);
+
+    /* Connect */
+    return __UA_Client_connect(client, false);
+})
 
 /* Connect async (non-blocking) to the server. After initiating the connection,
  * call UA_Client_run_iterate repeatedly until the connection is fully
  * established. You can set a callback to client->config.stateCallback to be
  * notified when the connection status changes. Or use UA_Client_getState to get
  * the state manually. */
-UA_StatusCode UA_EXPORT UA_THREADSAFE
-UA_Client_connectAsync(UA_Client *client, const char *endpointUrl);
+UA_INLINABLE( UA_StatusCode
+UA_Client_connectAsync(UA_Client *client, const char *endpointUrl) ,{
+    /* Update the configuration */
+    UA_ClientConfig *cc = UA_Client_getConfig(client);
+    cc->noSession = false; /* Open a Session */
+    UA_String_clear(&cc->endpointUrl);
+    cc->endpointUrl = UA_STRING_ALLOC(endpointUrl);
+
+    /* Connect */
+    return __UA_Client_connect(client, true);
+})
 
 /* Connect to the server without creating a session
  *
  * @param client to use
  * @param endpointURL to connect (for example "opc.tcp://localhost:4840")
  * @return Indicates whether the operation succeeded or returns an error code */
-UA_StatusCode UA_EXPORT UA_THREADSAFE
-UA_Client_connectSecureChannel(UA_Client *client, const char *endpointUrl);
+UA_INLINABLE( UA_StatusCode
+UA_Client_connectSecureChannel(UA_Client *client, const char *endpointUrl) ,{
+    /* Update the configuration */
+    UA_ClientConfig *cc = UA_Client_getConfig(client);
+    cc->noSession = true; /* Don't open a Session */
+    UA_String_clear(&cc->endpointUrl);
+    cc->endpointUrl = UA_STRING_ALLOC(endpointUrl);
+
+    /* Connect */
+    return __UA_Client_connect(client, false);
+})
 
 /* Connect async (non-blocking) only the SecureChannel */
-UA_StatusCode UA_EXPORT UA_THREADSAFE
-UA_Client_connectSecureChannelAsync(UA_Client *client, const char *endpointUrl);
+UA_INLINABLE( UA_StatusCode
+UA_Client_connectSecureChannelAsync(UA_Client *client, const char *endpointUrl) ,{
+    /* Update the configuration */
+    UA_ClientConfig *cc = UA_Client_getConfig(client);
+    cc->noSession = true; /* Don't open a Session */
+    UA_String_clear(&cc->endpointUrl);
+    cc->endpointUrl = UA_STRING_ALLOC(endpointUrl);
+
+    /* Connect */
+    return __UA_Client_connect(client, false);
+})
 
 /* Connect to the server and create+activate a Session with the given username
  * and password. This first set the UserIdentityToken in the client config and
  * then calls the regular connect method. */
-static UA_INLINE UA_StatusCode
+UA_INLINABLE( UA_StatusCode
 UA_Client_connectUsername(UA_Client *client, const char *endpointUrl,
-                          const char *username, const char *password) {
-    UA_UserNameIdentityToken* identityToken = UA_UserNameIdentityToken_new();
-    if(!identityToken)
-        return UA_STATUSCODE_BADOUTOFMEMORY;
-    identityToken->userName = UA_STRING_ALLOC(username);
-    identityToken->password = UA_STRING_ALLOC(password);
+                          const char *username, const char *password) ,{
+    /* Set the user identity token */
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-    UA_ExtensionObject_clear(&cc->userIdentityToken);
-    cc->userIdentityToken.encoding = UA_EXTENSIONOBJECT_DECODED;
-    cc->userIdentityToken.content.decoded.type = &UA_TYPES[UA_TYPES_USERNAMEIDENTITYTOKEN];
-    cc->userIdentityToken.content.decoded.data = identityToken;
-    /* Silence a false-positive deprecated warning */
+    UA_StatusCode res =
+        UA_ClientConfig_setAuthenticationUsername(cc, username, password);
+    if(res != UA_STATUSCODE_GOOD)
+        return res;
+
+    /* Connect */
     return UA_Client_connect(client, endpointUrl);
-}
+})
+
+/* Sets up a listening socket for incoming reverse connect requests by OPC UA servers.
+ * After the first server has connected, the listening socket is removed.
+ * The client state callback is also used for reverse connect. An implementation could
+ * for example issue a new call to UA_Client_startListeningForReverseConnect after the
+ * server has closed the connection. If the client is connected to any server while
+ * UA_Client_startListeningForReverseConnect is called, the connection will be closed.
+ *
+ * The reverse connect is closed by calling the standard disconnect functions like
+ * for a "normal" connection that was initiated by the client. Calling one of the connect
+ * methods will also close the listening socket and the connection to the remote server.
+ */
+UA_StatusCode UA_EXPORT
+UA_Client_startListeningForReverseConnect(UA_Client *client, const UA_String *listenHostnames,
+                                          size_t listenHostnamesLength,
+                                          UA_UInt16 port);
 
 /* Disconnect and close a connection to the selected server. Disconnection is
  * always performed async (without blocking). */
@@ -296,10 +426,52 @@ UA_Client_disconnect(UA_Client *client);
 UA_StatusCode UA_EXPORT UA_THREADSAFE
 UA_Client_disconnectAsync(UA_Client *client);
 
-/* Disconnect the SecureChannel but keep the Session intact (if it exists).
- * This is always an async (non-blocking) operation. */
+/* Disconnect the SecureChannel but keep the Session intact (if it exists). */
 UA_StatusCode UA_EXPORT UA_THREADSAFE
 UA_Client_disconnectSecureChannel(UA_Client *client);
+
+/* Disconnect the SecureChannel but keep the Session intact (if it exists). This
+ * is an async operation. Iterate the client until the SecureChannel was fully
+ * cleaned up. */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+UA_Client_disconnectSecureChannelAsync(UA_Client *client);
+
+/* Get the AuthenticationToken and ServerNonce required to activate the current
+ * Session on a different SecureChannel. */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+UA_Client_getSessionAuthenticationToken(UA_Client *client, UA_NodeId *authenticationToken,
+                                        UA_ByteString *serverNonce);
+
+/* Re-activate the current session. A change of prefered locales can be done by
+ * updating the client configuration. */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+UA_Client_activateCurrentSession(UA_Client *client);
+
+/* Async version of UA_Client_activateCurrentSession */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+UA_Client_activateCurrentSessionAsync(UA_Client *client);
+
+/* Activate an already created Session. This allows a Session to be transferred
+ * from a different client instance. The AuthenticationToken and ServerNonce
+ * must be provided for this. Both can be retrieved for an activated Session
+ * with UA_Client_getSessionAuthenticationToken.
+ *
+ * The UserIdentityToken used for authentication must be identical to the
+ * original activation of the Session. The UserIdentityToken is set in the
+ * client configuration.
+ *
+ * Note the noNewSession option if there should not be a new Session
+ * automatically created when this one closes. */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+UA_Client_activateSession(UA_Client *client,
+                          const UA_NodeId authenticationToken,
+                          const UA_ByteString serverNonce);
+
+/* Async version of UA_Client_activateSession */
+UA_StatusCode UA_EXPORT UA_THREADSAFE
+UA_Client_activateSessionAsync(UA_Client *client,
+                               const UA_NodeId authenticationToken,
+                               const UA_ByteString serverNonce);
 
 /**
  * Discovery
@@ -346,7 +518,6 @@ UA_Client_findServers(UA_Client *client, const char *serverUrl,
                       size_t *registeredServersSize,
                       UA_ApplicationDescription **registeredServers);
 
-#ifdef UA_ENABLE_DISCOVERY
 /* Get a list of all known server in the network. Only supported by LDS servers.
  *
  * @param client to use. Must be connected to the same endpoint given in
@@ -370,7 +541,6 @@ UA_Client_findServersOnNetwork(UA_Client *client, const char *serverUrl,
                                UA_UInt32 startingRecordId, UA_UInt32 maxRecordsToReturn,
                                size_t serverCapabilityFilterSize, UA_String *serverCapabilityFilter,
                                size_t *serverOnNetworkSize, UA_ServerOnNetwork **serverOnNetwork);
-#endif
 
 /**
  * .. _client-services:
@@ -390,166 +560,162 @@ __UA_Client_Service(UA_Client *client, const void *request,
 /*
  * Attribute Service Set
  * ^^^^^^^^^^^^^^^^^^^^^ */
-static UA_INLINE UA_THREADSAFE UA_ReadResponse
-UA_Client_Service_read(UA_Client *client, const UA_ReadRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_ReadResponse
+UA_Client_Service_read(UA_Client *client, const UA_ReadRequest request) ,{
     UA_ReadResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_READREQUEST],
                         &response, &UA_TYPES[UA_TYPES_READRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_WriteResponse
-UA_Client_Service_write(UA_Client *client, const UA_WriteRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_WriteResponse
+UA_Client_Service_write(UA_Client *client, const UA_WriteRequest request) ,{
     UA_WriteResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_WRITEREQUEST],
                         &response, &UA_TYPES[UA_TYPES_WRITERESPONSE]);
     return response;
-}
+})
 
 /*
 * Historical Access Service Set
 * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
-#ifdef UA_ENABLE_HISTORIZING
-static UA_INLINE UA_THREADSAFE UA_HistoryReadResponse
-UA_Client_Service_historyRead(UA_Client *client, const UA_HistoryReadRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_HistoryReadResponse
+UA_Client_Service_historyRead(UA_Client *client, const UA_HistoryReadRequest request) ,{
     UA_HistoryReadResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_HISTORYREADREQUEST],
         &response, &UA_TYPES[UA_TYPES_HISTORYREADRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_HistoryUpdateResponse
-UA_Client_Service_historyUpdate(UA_Client *client, const UA_HistoryUpdateRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_HistoryUpdateResponse
+UA_Client_Service_historyUpdate(UA_Client *client, const UA_HistoryUpdateRequest request) ,{
     UA_HistoryUpdateResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_HISTORYUPDATEREQUEST],
         &response, &UA_TYPES[UA_TYPES_HISTORYUPDATERESPONSE]);
     return response;
-}
-#endif
+})
 
 /*
  * Method Service Set
  * ^^^^^^^^^^^^^^^^^^ */
-#ifdef UA_ENABLE_METHODCALLS
-static UA_INLINE UA_THREADSAFE UA_CallResponse
-UA_Client_Service_call(UA_Client *client, const UA_CallRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_CallResponse
+UA_Client_Service_call(UA_Client *client, const UA_CallRequest request) ,{
     UA_CallResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_CALLREQUEST],
                         &response, &UA_TYPES[UA_TYPES_CALLRESPONSE]);
     return response;
-}
-#endif
+})
 
 /*
  * NodeManagement Service Set
  * ^^^^^^^^^^^^^^^^^^^^^^^^^^ */
-static UA_INLINE UA_THREADSAFE UA_AddNodesResponse
-UA_Client_Service_addNodes(UA_Client *client, const UA_AddNodesRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_AddNodesResponse
+UA_Client_Service_addNodes(UA_Client *client, const UA_AddNodesRequest request) ,{
     UA_AddNodesResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_ADDNODESREQUEST],
                         &response, &UA_TYPES[UA_TYPES_ADDNODESRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_AddReferencesResponse
+UA_INLINABLE( UA_THREADSAFE UA_AddReferencesResponse
 UA_Client_Service_addReferences(UA_Client *client,
-                                const UA_AddReferencesRequest request) {
+                                const UA_AddReferencesRequest request) ,{
     UA_AddReferencesResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_ADDREFERENCESREQUEST],
                         &response, &UA_TYPES[UA_TYPES_ADDREFERENCESRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_DeleteNodesResponse
+UA_INLINABLE( UA_THREADSAFE UA_DeleteNodesResponse
 UA_Client_Service_deleteNodes(UA_Client *client,
-                              const UA_DeleteNodesRequest request) {
+                              const UA_DeleteNodesRequest request) ,{
     UA_DeleteNodesResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_DELETENODESREQUEST],
                         &response, &UA_TYPES[UA_TYPES_DELETENODESRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_DeleteReferencesResponse
+UA_INLINABLE( UA_THREADSAFE UA_DeleteReferencesResponse
 UA_Client_Service_deleteReferences(UA_Client *client,
-                                   const UA_DeleteReferencesRequest request) {
+                                   const UA_DeleteReferencesRequest request) ,{
     UA_DeleteReferencesResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_DELETEREFERENCESREQUEST],
                         &response, &UA_TYPES[UA_TYPES_DELETEREFERENCESRESPONSE]);
     return response;
-}
+})
 
 /*
  * View Service Set
  * ^^^^^^^^^^^^^^^^ */
-static UA_INLINE UA_THREADSAFE UA_BrowseResponse
-UA_Client_Service_browse(UA_Client *client, const UA_BrowseRequest request) {
+UA_INLINABLE( UA_THREADSAFE UA_BrowseResponse
+UA_Client_Service_browse(UA_Client *client, const UA_BrowseRequest request) ,{
     UA_BrowseResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_BROWSEREQUEST],
                         &response, &UA_TYPES[UA_TYPES_BROWSERESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_BrowseNextResponse
+UA_INLINABLE( UA_THREADSAFE UA_BrowseNextResponse
 UA_Client_Service_browseNext(UA_Client *client,
-                             const UA_BrowseNextRequest request) {
+                             const UA_BrowseNextRequest request) ,{
     UA_BrowseNextResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_BROWSENEXTREQUEST],
                         &response, &UA_TYPES[UA_TYPES_BROWSENEXTRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_TranslateBrowsePathsToNodeIdsResponse
+UA_INLINABLE( UA_THREADSAFE UA_TranslateBrowsePathsToNodeIdsResponse
 UA_Client_Service_translateBrowsePathsToNodeIds(UA_Client *client,
-                        const UA_TranslateBrowsePathsToNodeIdsRequest request) {
+                        const UA_TranslateBrowsePathsToNodeIdsRequest request) ,{
     UA_TranslateBrowsePathsToNodeIdsResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_TRANSLATEBROWSEPATHSTONODEIDSREQUEST],
                         &response,
                         &UA_TYPES[UA_TYPES_TRANSLATEBROWSEPATHSTONODEIDSRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_RegisterNodesResponse
+UA_INLINABLE( UA_THREADSAFE UA_RegisterNodesResponse
 UA_Client_Service_registerNodes(UA_Client *client,
-                                const UA_RegisterNodesRequest request) {
+                                const UA_RegisterNodesRequest request) ,{
     UA_RegisterNodesResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_REGISTERNODESREQUEST],
                         &response, &UA_TYPES[UA_TYPES_REGISTERNODESRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_UnregisterNodesResponse
+UA_INLINABLE( UA_THREADSAFE UA_UnregisterNodesResponse
 UA_Client_Service_unregisterNodes(UA_Client *client,
-                                  const UA_UnregisterNodesRequest request) {
+                                  const UA_UnregisterNodesRequest request) ,{
     UA_UnregisterNodesResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_UNREGISTERNODESREQUEST],
                         &response, &UA_TYPES[UA_TYPES_UNREGISTERNODESRESPONSE]);
     return response;
-}
+})
 
 /*
  * Query Service Set
  * ^^^^^^^^^^^^^^^^^ */
 #ifdef UA_ENABLE_QUERY
 
-static UA_INLINE UA_THREADSAFE UA_QueryFirstResponse
+UA_INLINABLE( UA_THREADSAFE UA_QueryFirstResponse
 UA_Client_Service_queryFirst(UA_Client *client,
-                             const UA_QueryFirstRequest request) {
+                             const UA_QueryFirstRequest request) ,{
     UA_QueryFirstResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_QUERYFIRSTREQUEST],
                         &response, &UA_TYPES[UA_TYPES_QUERYFIRSTRESPONSE]);
     return response;
-}
+})
 
-static UA_INLINE UA_THREADSAFE UA_QueryNextResponse
+UA_INLINABLE( UA_THREADSAFE UA_QueryNextResponse
 UA_Client_Service_queryNext(UA_Client *client,
-                            const UA_QueryNextRequest request) {
+                            const UA_QueryNextRequest request) ,{
     UA_QueryNextResponse response;
     __UA_Client_Service(client, &request, &UA_TYPES[UA_TYPES_QUERYFIRSTREQUEST],
                         &response, &UA_TYPES[UA_TYPES_QUERYFIRSTRESPONSE]);
     return response;
-}
+})
 
 #endif
 
@@ -560,42 +726,37 @@ UA_Client_Service_queryNext(UA_Client *client,
  * ---------------------
  * All OPC UA services are asynchronous in nature. So several service calls can
  * be made without waiting for the individual responses. Depending on the
- * server's priorities responses may come in a different ordering than sent.
+ * server's priorities responses may come in a different ordering than sent. Use
+ * the typed wrappers for async service requests instead of
+ * `__UA_Client_AsyncService` directly. See :ref:`client_async`. However, the
+ * general mechanism of async service calls is explained here.
  *
- * As noted in :ref:`the client overview<client>` currently no means
- * of handling asynchronous events automatically is provided. However, some
- * synchronous function calls will trigger handling, but to ensure this
- * happens a client should periodically call `UA_Client_run_iterate`
- * explicitly.
+ * Connection and session management are performed in `UA_Client_run_iterate`,
+ * so to keep a connection healthy any client needs to consider how and when it
+ * is appropriate to do the call. This is especially true for the periodic
+ * renewal of a SecureChannel's SecurityToken which is designed to have a
+ * limited lifetime and will invalidate the connection if not renewed.
  *
- * Connection and session management are also performed in
- * `UA_Client_run_iterate`, so to keep a connection healthy any client needs to
- * consider how and when it is appropriate to do the call.
- * This is especially true for the periodic renewal of a SecureChannel's
- * SecurityToken which is designed to have a limited lifetime and will
- * invalidate the connection if not renewed.
- */
-
-/* Use the type versions of this method. See below. However, the general
- * mechanism of async service calls is explained here.
+ * We say that an async service call has been dispatched once
+ * __UA_Client_AsyncService returns UA_STATUSCODE_GOOD. If there is an error
+ * after an async service has been dispatched, the callback is called with an
+ * "empty" response where the StatusCode has been set accordingly. This is also
+ * done if the client is shutting down and the list of dispatched async services
+ * is emptied.
  *
- * We say that an async service call has been dispatched once this method
- * returns UA_STATUSCODE_GOOD. If there is an error after an async service has
- * been dispatched, the callback is called with an "empty" response where the
- * statusCode has been set accordingly. This is also done if the client is
- * shutting down and the list of dispatched async services is emptied.
+ * The StatusCode received when the client is shutting down is
+ * UA_STATUSCODE_BADSHUTDOWN. The StatusCode received when the client doesn't
+ * receive response after the specified in config->timeout (can be overridden
+ * via the "timeoutHint" in the request header) is UA_STATUSCODE_BADTIMEOUT.
  *
- * The statusCode received when the client is shutting down is
- * UA_STATUSCODE_BADSHUTDOWN.
- *
- * The statusCode received when the client doesn't receive response
- * after specified config->timeout (in ms) is
- * UA_STATUSCODE_BADTIMEOUT.
- *
- * Instead, you can use __UA_Client_AsyncServiceEx to specify
- * a custom timeout
- *
- * The userdata and requestId arguments can be NULL. */
+ * The userdata and requestId arguments can be NULL. The (optional) requestId
+ * output can be used to cancel the service while it is still pending. The
+ * requestId is unique for each service request. Alternatively the requestHandle
+ * can be manually set (non necessarily unique) in the request header for full
+ * service call. This can be used to cancel all outstanding requests using that
+ * handle together. Note that the client will auto-generate a requestHandle
+ * >100,000 if none is defined. Avoid these when manually setting a requetHandle
+ * in the requestHeader to avoid clashes. */
 
 typedef void (*UA_ClientAsyncServiceCallback)(UA_Client *client, void *userdata,
                                               UA_UInt32 requestId, void *response);
@@ -607,16 +768,24 @@ __UA_Client_AsyncService(UA_Client *client, const void *request,
                          const UA_DataType *responseType,
                          void *userdata, UA_UInt32 *requestId);
 
-UA_StatusCode UA_EXPORT UA_THREADSAFE
-UA_Client_sendAsyncRequest(UA_Client *client, const void *request,
-        const UA_DataType *requestType, UA_ClientAsyncServiceCallback callback,
-        const UA_DataType *responseType, void *userdata, UA_UInt32 *requestId);
+/* Cancel all dispatched requests with the given requestHandle.
+ * The number if cancelled requests is returned by the server.
+ * The output argument cancelCount is not set if NULL. */
+UA_EXPORT UA_THREADSAFE UA_StatusCode
+UA_Client_cancelByRequestHandle(UA_Client *client, UA_UInt32 requestHandle,
+                                UA_UInt32 *cancelCount);
+
+/* Map the requestId to the requestHandle used for that request and call the
+ * Cancel service for that requestHandle. */
+UA_EXPORT UA_THREADSAFE UA_StatusCode
+UA_Client_cancelByRequestId(UA_Client *client, UA_UInt32 requestId,
+                            UA_UInt32 *cancelCount);
 
 /* Set new userdata and callback for an existing request.
  *
  * @param client Pointer to the UA_Client
  * @param requestId RequestId of the request, which was returned by
- *        UA_Client_sendAsyncRequest before
+ *        __UA_Client_AsyncService before
  * @param userdata The new userdata
  * @param callback The new callback
  * @return UA_StatusCode UA_STATUSCODE_GOOD on success
@@ -642,33 +811,6 @@ UA_Client_run_iterate(UA_Client *client, UA_UInt32 timeout);
  *         ``connectStatus`` is returned. */
 UA_StatusCode UA_EXPORT UA_THREADSAFE
 UA_Client_renewSecureChannel(UA_Client *client);
-
-/* Use the type versions of this method. See below. However, the general
- * mechanism of async service calls is explained here.
- *
- * We say that an async service call has been dispatched once this method
- * returns UA_STATUSCODE_GOOD. If there is an error after an async service has
- * been dispatched, the callback is called with an "empty" response where the
- * statusCode has been set accordingly. This is also done if the client is
- * shutting down and the list of dispatched async services is emptied.
- *
- * The statusCode received when the client is shutting down is
- * UA_STATUSCODE_BADSHUTDOWN.
- *
- * The statusCode received when the client doesn't receive response
- * after specified timeout (in ms) is
- * UA_STATUSCODE_BADTIMEOUT.
- *
- * The timeout can be disabled by setting timeout to 0
- *
- * The userdata and requestId arguments can be NULL. */
-UA_StatusCode UA_EXPORT
-__UA_Client_AsyncServiceEx(UA_Client *client, const void *request,
-                           const UA_DataType *requestType,
-                           UA_ClientAsyncServiceCallback callback,
-                           const UA_DataType *responseType,
-                           void *userdata, UA_UInt32 *requestId,
-                           UA_UInt32 timeout);
 
 /**
  * Timed Callbacks
@@ -737,6 +879,7 @@ UA_Client_findDataType(UA_Client *client, const UA_NodeId *typeId);
  * .. toctree::
  *
  *    client_highlevel
+ *    client_highlevel_async
  *    client_subscriptions */
 
 _UA_END_DECLS

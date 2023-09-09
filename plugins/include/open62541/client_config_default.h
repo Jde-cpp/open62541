@@ -13,14 +13,8 @@
 
 _UA_BEGIN_DECLS
 
-UA_Client UA_EXPORT * UA_Client_new(void);
-
 UA_StatusCode UA_EXPORT
 UA_ClientConfig_setDefault(UA_ClientConfig *config);
-
-UA_StatusCode UA_EXPORT
-UA_ClientConfig_setAuthenticationUsername(UA_ClientConfig *config,
-                                          const char *username, const char *password);
 
 /* If certificates are used for authentication, this is only possible when
  * openssl or mbedtls is used. Libressl is currently not supported.*/

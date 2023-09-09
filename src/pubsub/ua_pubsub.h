@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2017-2018 Fraunhofer IOSB (Author: Andreas Ebner)
+ * Copyright (c) 2017-2019 Fraunhofer IOSB (Author: Andreas Ebner)
  * Copyright (c) 2019 Kalycito Infotech Private Limited
  * Copyright (c) 2020 Yannick Wallerer, Siemens AG
- * Copyright (c) 2020 Thomas Fischer, Siemens AG
+ * Copyright (c) 2020, 2022 Thomas Fischer, Siemens AG
  * Copyright (c) 2021 Fraunhofer IOSB (Author: Jan Hermes)
  * Copyright (c) 2022 Siemens AG (Author: Thomas Fischer)
  * Copyright (c) 2022 Fraunhofer IOSB (Author: Noel Graf)
@@ -16,22 +16,81 @@
 #define UA_PUBSUB_H_
 
 #define UA_INTERNAL
-#include <open62541/plugin/pubsub.h>
 #include <open62541/server.h>
 #include <open62541/server_pubsub.h>
 
 #include "open62541_queue.h"
+#include "ziptree.h"
 #include "ua_pubsub_networkmessage.h"
 
 #ifdef UA_ENABLE_PUBSUB_SKS
 #include <ua_pubsub_keystorage.h>
 #endif
 
-/* The public configuration structs are defined in include/ua_plugin_pubsub.h */
+/**
+ * 
+ *  PubSub Components Interation Table
+ * 
+ *  Following table captures the behaviour of components expected during specific state changes and also the integrations which is expected between the components.
+ * 
+ * 
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+| Component/State    |                     |         Disabled               |            Paused                |       Pre-Operational                |     Operational               |      Error                    |
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |                     | Channels for ReaderGroup and   |    No changes to channel         | Connection are initiated for         | Connection are initiated for  | Channels for ReaderGroup      |
+|                    |      Channel        | WriterGroup are closed         |                                  | any registerd Reader or Writergroups | any additional registered     | and WriterGroup are closed    |
+|                    |                     |                                |                                  |                                      | Reader or Writergroups        |                               |
+|     Connection     +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |    PubSubCallback   | Callback are Deregistered for  | Callback are Deregistered for    | Callback for send and recv           | Callback for send and recv    | Callback are Deregistered for |
+|                    |                     | send and recv channels         | send and recv channels           | channels are registered              | channels are registered       | send and recv channels        |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |      Triggers       |   ReaderGroup->Disable         |       No trigger required        |      No trigger required             |  ReaderGroup->Preoperational  |  ReaderGroup->Error           |
+|                    |                     |   WriterGroup->Disable         |                                  |                                      |  WriterGroup->Preoperational  |  WriterGroup->Error           |
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |                     |       No changes to channel    |    No changes to channel         | WriterGroup Connection should        | The WriterGroup connection    | No changes to channel         |
+|                    |      Channel        |                                |                                  | be initiated                         | must have been opened         |                               |
+|                    |                     |                                |                                  |                                      | successfully                  |                               |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|    WriterGroup     |    PubSubCallback   | Publish callback is            |     No changes to callback       |        No changes to callback        | Publish callback is           | Publish callback is           |
+|                    |                     | deregistered                   |                                  |                                      | registered                    | deregistered                  |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |                     |   DataSetWriter -> Disabled    |     No trigger required          |      No trigger required             | DataSetWriter->PreOperational |  DataSetWriter->Error         |
+|                    |      Triggers       |                                |                                  |                                      | Requires the Security Keys    |                               |
+|                    |                     |                                |                                  |                                      | to be set                     |                               |
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |                     |                                |                                  | ReaderGroup Connection should        | The ReaderGroup connection    |                               |
+|                    |      Channel        |   No changes to channel        |      No changes to channel       | be initiated                         | must have been opened         |    No changes to channel      |
+|                    |                     |                                |                                  |                                      | successfully                  |                               |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|    ReaderGroup     |    PubSubCallback   |                                                                                 No callback required                                                                     |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |    Triggers         |   DataSetReader -> Disabled    |     No trigger required          |      No trigger required             |  DataSetReader-> Operational  |  DataSetReader->Error         |
+|                    |                     |                                |  Only state variable is changed  |                                      |                               |                               |
+|                    |                     |                                |  when entering from Disable      |                                      |                               |                               |
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |        Channel      |                                                                                No changes to channel                                                                     |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|    DataSetWriter   |    PubSubCallback   |                                                                                No callback required                                                                      |
+|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |    Triggers         |    No trigger required         |     No trigger required          |       DataSetWriter->Operational     |  No trigger required          |  No trigger required          |
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |      Channel        |                                                                          Channels handled in ReaderGroup                                                                 |
+|                    +---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                    |    PubSubCallback   |                                                                                No callback required                                                                      |
+|    DataSetReader   +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+|                    |    Triggers         |    No trigger required         |     No trigger required          |      no triggers                     |                               |                               |
+|                    |                     |                                |                                  | On receipt of first packet from both |  No trigger required          |  No trigger required          |
+|                    |                     |                                |                                  | ReaderGroup and Reader are pushed to |                               |                               |
+|                    |                     |                                |                                  | Operational state                    |                               |                               |
++--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
+**/
 
 _UA_BEGIN_DECLS
 
 #ifdef UA_ENABLE_PUBSUB
+
+/* Max number of underlying for sending and receiving */
+#define UA_PUBSUB_MAXCHANNELS 8
 
 struct UA_WriterGroup;
 typedef struct UA_WriterGroup UA_WriterGroup;
@@ -49,13 +108,12 @@ typedef struct UA_SecurityGroup UA_SecurityGroup;
 typedef struct UA_PublishedDataSet {
     UA_PublishedDataSetConfig config;
     UA_DataSetMetaDataType dataSetMetaData;
-    TAILQ_HEAD(UA_ListOfDataSetField, UA_DataSetField) fields;
-    UA_NodeId identifier;
+    TAILQ_HEAD(, UA_DataSetField) fields;
     UA_UInt16 fieldSize;
+    UA_NodeId identifier;
     UA_UInt16 promotedFieldsCount;
     UA_UInt16 configurationFreezeCounter;
     TAILQ_ENTRY(UA_PublishedDataSet) listEntry;
-    UA_Boolean configurationFrozen;
 } UA_PublishedDataSet;
 
 UA_StatusCode
@@ -68,9 +126,21 @@ UA_PublishedDataSet_findPDSbyId(UA_Server *server, UA_NodeId identifier);
 UA_PublishedDataSet *
 UA_PublishedDataSet_findPDSbyName(UA_Server *server, UA_String name);
 
+UA_AddPublishedDataSetResult
+UA_PublishedDataSet_create(UA_Server *server,
+                           const UA_PublishedDataSetConfig *publishedDataSetConfig,
+                           UA_NodeId *pdsIdentifier);
+
 void
 UA_PublishedDataSet_clear(UA_Server *server,
                           UA_PublishedDataSet *publishedDataSet);
+
+UA_StatusCode
+UA_PublishedDataSet_remove(UA_Server *server, UA_PublishedDataSet *publishedDataSet);
+
+UA_StatusCode
+getPublishedDataSetConfig(UA_Server *server, const UA_NodeId pds,
+                          UA_PublishedDataSetConfig *config);
 
 typedef struct UA_StandaloneSubscribedDataSet{
     UA_StandaloneSubscribedDataSetConfig config;
@@ -80,13 +150,15 @@ typedef struct UA_StandaloneSubscribedDataSet{
 } UA_StandaloneSubscribedDataSet;
 
 UA_StatusCode
-UA_StandaloneSubscribedDataSetConfig_copy(const UA_StandaloneSubscribedDataSetConfig *src, UA_StandaloneSubscribedDataSetConfig *dst);
+UA_StandaloneSubscribedDataSetConfig_copy(const UA_StandaloneSubscribedDataSetConfig *src,
+                                          UA_StandaloneSubscribedDataSetConfig *dst);
 UA_StandaloneSubscribedDataSet *
 UA_StandaloneSubscribedDataSet_findSDSbyId(UA_Server *server, UA_NodeId identifier);
 UA_StandaloneSubscribedDataSet *
 UA_StandaloneSubscribedDataSet_findSDSbyName(UA_Server *server, UA_String identifier);
 void
-UA_StandaloneSubscribedDataSet_clear(UA_Server *server, UA_StandaloneSubscribedDataSet *subscribedDataSet);
+UA_StandaloneSubscribedDataSet_clear(UA_Server *server,
+                                     UA_StandaloneSubscribedDataSet *subscribedDataSet);
 
 #define UA_LOG_PDS_INTERNAL(LOGGER, LEVEL, PDS, MSG, ...)               \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -118,17 +190,38 @@ UA_StandaloneSubscribedDataSet_clear(UA_Server *server, UA_StandaloneSubscribedD
 
 typedef struct UA_PubSubConnection {
     UA_PubSubComponentEnumType componentType;
-    UA_PubSubConnectionConfig *config;
-    UA_PubSubChannel *channel;
-    UA_NodeId identifier;
-    LIST_HEAD(UA_ListOfWriterGroup, UA_WriterGroup) writerGroups;
-    size_t writerGroupsSize;
-    LIST_HEAD(UA_ListOfPubSubReaderGroup, UA_ReaderGroup) readerGroups;
-    size_t readerGroupsSize;
+
     TAILQ_ENTRY(UA_PubSubConnection) listEntry;
+    UA_NodeId identifier;
+
+    /* The send/recv connections are only opened if the state is operational */
+    UA_PubSubState state;
+    UA_PubSubConnectionConfig config;
+    UA_Boolean json; /* Extracted from the TransportProfileUrl */
+
+    /* Channels belonging to the PubSubConnection. Send channels belong to
+     * WriterGroups, recv channels belong to ReaderGroups. We only open channels 
+     * if there is at least one WriterGroup/ReaderGroup respectively.
+     *
+     * Some channels belong exclusively to just one WriterGroup/ReaderGroup that
+     * defines additional connection properties. For example an MQTT topic name
+     * or QoS parameters. In that case a dedicated NetworkCallback is used that
+     * takes this ReaderGroup/WriterGroup directly as context. */
+    UA_ConnectionManager *cm;
+    uintptr_t recvChannels[UA_PUBSUB_MAXCHANNELS];
+    size_t recvChannelsSize;
+    uintptr_t sendChannel;
+
+    size_t writerGroupsSize;
+    LIST_HEAD(, UA_WriterGroup) writerGroups;
+
+    size_t readerGroupsSize;
+    LIST_HEAD(, UA_ReaderGroup) readerGroups;
+
     UA_UInt16 configurationFreezeCounter;
-    UA_Boolean isRegistered; /* Subscriber requires connection channel regist */
-    UA_Boolean configurationFrozen;
+
+    UA_Boolean deleteFlag; /* To be deleted - in addition to the PubSubState */
+    UA_DelayedCallback dc; /* For delayed freeing */
 } UA_PubSubConnection;
 
 UA_StatusCode
@@ -139,18 +232,33 @@ UA_PubSubConnection *
 UA_PubSubConnection_findConnectionbyId(UA_Server *server,
                                        UA_NodeId connectionIdentifier);
 
+UA_StatusCode
+UA_PubSubConnection_create(UA_Server *server,
+                           const UA_PubSubConnectionConfig *connectionConfig,
+                           UA_NodeId *connectionIdentifier);
+
 void
 UA_PubSubConnectionConfig_clear(UA_PubSubConnectionConfig *connectionConfig);
 
+void
+UA_PubSubConnection_delete(UA_Server *server, UA_PubSubConnection *c);
+
 UA_StatusCode
-removePubSubConnection(UA_Server *server, const UA_NodeId connection);
+UA_PubSubConnection_connect(UA_Server *server, UA_PubSubConnection *c);
 
 void
-UA_PubSubConnection_clear(UA_Server *server, UA_PubSubConnection *connection);
+UA_PubSubConnection_disconnect(UA_PubSubConnection *c);
 
-/* Register channel for given connectionIdentifier */
+/* Returns either the eventloop configured in the connection or, in its absence,
+ * for the server */
+UA_EventLoop *
+UA_PubSubConnection_getEL(UA_Server *server, UA_PubSubConnection *c);
+
 UA_StatusCode
-UA_PubSubConnection_regist(UA_Server *server, UA_NodeId *connectionIdentifier, const UA_ReaderGroupConfig *readerGroupConfig);
+UA_PubSubConnection_setPubSubState(UA_Server *server,
+                                   UA_PubSubConnection *connection,
+                                   UA_PubSubState state,
+                                   UA_StatusCode cause);
 
 #define UA_LOG_CONNECTION_INTERNAL(LOGGER, LEVEL, CONNECTION, MSG, ...) \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -203,6 +311,7 @@ typedef struct UA_DataSetWriter {
 #endif
     UA_UInt16 actualDataSetMessageSequenceCount;
     UA_Boolean configurationFrozen;
+    UA_UInt64  pubSubStateTimerId;
 } UA_DataSetWriter;
 
 UA_StatusCode
@@ -224,11 +333,24 @@ UA_DataSetWriter_generateDataSetMessage(UA_Server *server,
                                         UA_DataSetWriter *dataSetWriter);
 
 UA_StatusCode
-UA_DataSetWriter_remove(UA_Server *server, UA_WriterGroup *linkedWriterGroup,
-                        UA_DataSetWriter *dataSetWriter);
+UA_DataSetWriter_prepareDataSet(UA_Server *server, UA_DataSetWriter *dsw,
+                                UA_DataSetMessage *dsm);
+
+void
+UA_DataSetWriter_freezeConfiguration(UA_Server *server, UA_DataSetWriter *dsw);
+
+void
+UA_DataSetWriter_unfreezeConfiguration(UA_Server *server, UA_DataSetWriter *dsw);
 
 UA_StatusCode
-removeDataSetWriter(UA_Server *server, const UA_NodeId dsw);
+UA_DataSetWriter_create(UA_Server *server,
+                        const UA_NodeId writerGroup, const UA_NodeId dataSet,
+                        const UA_DataSetWriterConfig *dataSetWriterConfig,
+                        UA_NodeId *writerIdentifier);
+
+
+UA_StatusCode
+UA_DataSetWriter_remove(UA_Server *server, UA_DataSetWriter *dataSetWriter);
 
 #define UA_LOG_WRITER_INTERNAL(LOGGER, LEVEL, WRITER, MSG, ...)         \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -269,15 +391,22 @@ struct UA_WriterGroup {
     UA_WriterGroupConfig config;
     LIST_ENTRY(UA_WriterGroup) listEntry;
     UA_NodeId identifier;
-    UA_PubSubConnection *linkedConnection;
-    LIST_HEAD(UA_ListOfDataSetWriter, UA_DataSetWriter) writers;
+
+    LIST_HEAD(, UA_DataSetWriter) writers;
     UA_UInt32 writersCount;
-    UA_UInt64 publishCallbackId;
-    UA_Boolean publishCallbackIsRegistered;
+
+    UA_UInt64 publishCallbackId; /* registered if != 0 */
     UA_PubSubState state;
     UA_NetworkMessageOffsetBuffer bufferedMessage;
     UA_UInt16 sequenceNumber; /* Increased after every succressuly sent message */
     UA_Boolean configurationFrozen;
+    UA_DateTime lastPublishTimeStamp;
+
+    /* The ConnectionManager pointer is stored in the Connection. The channels
+     * are either stored here or in the Connection, but never both. */
+    UA_PubSubConnection *linkedConnection;
+    uintptr_t sendChannel;
+    UA_Boolean deleteFlag;
 
 #ifdef UA_ENABLE_PUBSUB_ENCRYPTION
     UA_UInt32 securityTokenId;
@@ -290,7 +419,25 @@ struct UA_WriterGroup {
 };
 
 UA_StatusCode
-removeWriterGroup(UA_Server *server, const UA_NodeId writerGroup);
+UA_WriterGroup_create(UA_Server *server, const UA_NodeId connection,
+                      const UA_WriterGroupConfig *writerGroupConfig,
+                      UA_NodeId *writerGroupIdentifier);
+
+UA_StatusCode
+UA_WriterGroup_remove(UA_Server *server, UA_WriterGroup *wg);
+
+void
+UA_WriterGroup_disconnect(UA_WriterGroup *wg);
+
+UA_StatusCode
+UA_WriterGroup_connect(UA_Server *server, UA_WriterGroup *wg);
+
+UA_StatusCode
+setWriterGroupEncryptionKeys(UA_Server *server, const UA_NodeId writerGroup,
+                             UA_UInt32 securityTokenId,
+                             const UA_ByteString signingKey,
+                             const UA_ByteString encryptingKey,
+                             const UA_ByteString keyNonce);
 
 UA_StatusCode
 UA_WriterGroupConfig_copy(const UA_WriterGroupConfig *src,
@@ -300,10 +447,30 @@ UA_WriterGroup *
 UA_WriterGroup_findWGbyId(UA_Server *server, UA_NodeId identifier);
 
 UA_StatusCode
+UA_WriterGroup_freezeConfiguration(UA_Server *server, UA_WriterGroup *wg);
+
+UA_StatusCode
+UA_WriterGroup_unfreezeConfiguration(UA_Server *server, UA_WriterGroup *wg);
+
+UA_StatusCode
 UA_WriterGroup_setPubSubState(UA_Server *server,
                               UA_WriterGroup *writerGroup,
                               UA_PubSubState state,
                               UA_StatusCode cause);
+UA_StatusCode
+UA_WriterGroup_addPublishCallback(UA_Server *server, UA_WriterGroup *writerGroup);
+
+void
+UA_WriterGroup_publishCallback(UA_Server *server,
+                               UA_WriterGroup *writerGroup);
+
+UA_StatusCode
+UA_WriterGroup_updateConfig(UA_Server *server, UA_WriterGroup *wg,
+                            const UA_WriterGroupConfig *config);
+
+UA_StatusCode
+UA_WriterGroup_enableWriterGroup(UA_Server *server,
+                                 const UA_NodeId writerGroup);
 
 #define UA_LOG_WRITERGROUP_INTERNAL(LOGGER, LEVEL, WRITERGROUP, MSG, ...) \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -353,7 +520,16 @@ UA_DataSetField *
 UA_DataSetField_findDSFbyId(UA_Server *server, UA_NodeId identifier);
 
 UA_DataSetFieldResult
-removeDataSetField(UA_Server *server, const UA_NodeId dsf);
+UA_DataSetField_remove(UA_Server *server, UA_DataSetField *currentField);
+
+UA_DataSetFieldResult
+UA_DataSetField_create(UA_Server *server, const UA_NodeId publishedDataSet,
+                       const UA_DataSetFieldConfig *fieldConfig,
+                       UA_NodeId *fieldIdentifier);
+
+void
+UA_PubSubDataSetField_sampleValue(UA_Server *server, UA_DataSetField *field,
+                                  UA_DataValue *value);
 
 /**********************************************/
 /*               DataSetReader                */
@@ -388,14 +564,17 @@ UA_DataSetReader_process(UA_Server *server,
                          UA_DataSetMessage *dataSetMsg);
 
 UA_StatusCode
-removeDataSetReader(UA_Server *server, UA_NodeId readerIdentifier);
+UA_DataSetReader_checkIdentifier(UA_Server *server, UA_NetworkMessage *msg,
+                                 UA_DataSetReader *reader,
+                                 UA_ReaderGroupConfig readerGroupConfig);
 
-/* Copy the configuration of DataSetReader */
-UA_StatusCode UA_DataSetReaderConfig_copy(const UA_DataSetReaderConfig *src,
-                                          UA_DataSetReaderConfig *dst);
+UA_StatusCode
+UA_DataSetReader_create(UA_Server *server, UA_NodeId readerGroupIdentifier,
+                        const UA_DataSetReaderConfig *dataSetReaderConfig,
+                        UA_NodeId *readerIdentifier);
 
-/* Clear the configuration of a DataSetReader */
-void UA_DataSetReaderConfig_clear(UA_DataSetReaderConfig *cfg);
+UA_StatusCode
+UA_DataSetReader_remove(UA_Server *server, UA_DataSetReader *dsr);
 
 /* Copy the configuration of Target Variables */
 UA_StatusCode UA_TargetVariables_copy(const UA_TargetVariables *src,
@@ -409,22 +588,15 @@ UA_StatusCode UA_FieldTargetVariable_copy(const UA_FieldTargetVariable *src,
                                           UA_FieldTargetVariable *dst);
 
 UA_StatusCode
+DataSetReader_createTargetVariables(UA_Server *server, UA_DataSetReader *dsr,
+                                    size_t targetVariablesSize,
+                                    const UA_FieldTargetVariable *targetVariables);
+
+UA_StatusCode
 UA_DataSetReader_setPubSubState(UA_Server *server,
                                 UA_DataSetReader *dataSetReader,
                                 UA_PubSubState state,
                                 UA_StatusCode cause);
-
-UA_StatusCode
-UA_DataSetReader_generateNetworkMessage(UA_PubSubConnection *pubSubConnection,
-                                        UA_ReaderGroup *readerGroup,
-                                        UA_DataSetReader *dataSetReader,
-                                        UA_DataSetMessage *dsm, UA_UInt16 *writerId,
-                                        UA_Byte dsmCount, UA_NetworkMessage *nm);
-
-UA_StatusCode
-UA_DataSetReader_generateDataSetMessage(UA_Server *server,
-                                        UA_DataSetMessage *dataSetMessage,
-                                        UA_DataSetReader *dataSetReader);
 
 #define UA_LOG_READER_INTERNAL(LOGGER, LEVEL, READER, MSG, ...)         \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -464,14 +636,20 @@ struct UA_ReaderGroup {
     UA_PubSubComponentEnumType componentType;
     UA_ReaderGroupConfig config;
     UA_NodeId identifier;
-    UA_NodeId linkedConnection;
     LIST_ENTRY(UA_ReaderGroup) listEntry;
-    LIST_HEAD(UA_ListOfPubSubDataSetReader, UA_DataSetReader) readers;
-    /* for simplified information access */
+
+    LIST_HEAD(, UA_DataSetReader) readers;
     UA_UInt32 readersCount;
-    UA_UInt64 subscribeCallbackId;
+
     UA_PubSubState state;
     UA_Boolean configurationFrozen;
+
+    /* The ConnectionManager pointer is stored in the Connection. The channels 
+     * are either stored here or in the Connection, but never both. */
+    UA_PubSubConnection *linkedConnection;
+    uintptr_t recvChannels[UA_PUBSUB_MAXCHANNELS];
+    size_t recvChannelsSize;
+    UA_Boolean deleteFlag;
 
 #ifdef UA_ENABLE_PUBSUB_ENCRYPTION
     UA_UInt32 securityTokenId;
@@ -484,7 +662,25 @@ struct UA_ReaderGroup {
 };
 
 UA_StatusCode
-removeReaderGroup(UA_Server *server, UA_NodeId groupIdentifier);
+UA_ReaderGroup_create(UA_Server *server, UA_NodeId connectionId,
+                      const UA_ReaderGroupConfig *rgc,
+                      UA_NodeId *readerGroupId);
+
+UA_StatusCode
+UA_ReaderGroup_remove(UA_Server *server, UA_ReaderGroup *rg);
+
+UA_StatusCode
+UA_ReaderGroup_connect(UA_Server *server, UA_ReaderGroup *rg);
+
+void
+UA_ReaderGroup_disconnect(UA_ReaderGroup *rg);
+
+UA_StatusCode
+setReaderGroupEncryptionKeys(UA_Server *server, const UA_NodeId readerGroup,
+                             UA_UInt32 securityTokenId,
+                             const UA_ByteString signingKey,
+                             const UA_ByteString encryptingKey,
+                             const UA_ByteString keyNonce);
 
 UA_StatusCode
 UA_ReaderGroupConfig_copy(const UA_ReaderGroupConfig *src,
@@ -499,33 +695,24 @@ UA_DataSetReader *
 UA_ReaderGroup_findDSRbyId(UA_Server *server, UA_NodeId identifier);
 
 UA_StatusCode
+UA_ReaderGroup_freezeConfiguration(UA_Server *server, UA_ReaderGroup *rg);
+
+UA_StatusCode
+UA_ReaderGroup_unfreezeConfiguration(UA_Server *server, UA_ReaderGroup *rg);
+
+UA_StatusCode
 UA_ReaderGroup_setPubSubState(UA_Server *server,
                               UA_ReaderGroup *readerGroup,
                               UA_PubSubState state,
                               UA_StatusCode cause);
 
-/*********************************************************/
-/*               PublishValues handling                  */
-/*********************************************************/
+UA_Boolean
+UA_ReaderGroup_decodeAndProcessRT(UA_Server *server, UA_ReaderGroup *readerGroup,
+                                    UA_ByteString *buf);
 
-UA_StatusCode
-UA_WriterGroup_addPublishCallback(UA_Server *server, UA_WriterGroup *writerGroup);
-
-void
-UA_WriterGroup_publishCallback(UA_Server *server, UA_WriterGroup *writerGroup);
-
-/*********************************************************/
-/*               SubscribeValues handling                */
-/*********************************************************/
-
-UA_StatusCode
-UA_ReaderGroup_addSubscribeCallback(UA_Server *server, UA_ReaderGroup *readerGroup);
-
-void
-UA_ReaderGroup_removeSubscribeCallback(UA_Server *server, UA_ReaderGroup *readerGroup);
-
-void
-UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerGroup);
+UA_Boolean
+UA_ReaderGroup_process(UA_Server *server, UA_ReaderGroup *readerGroup,
+                       UA_NetworkMessage *nm);
 
 #define UA_LOG_READERGROUP_INTERNAL(LOGGER, LEVEL, RG, MSG, ...)        \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -574,20 +761,6 @@ UA_StatusCode
 decodeNetworkMessage(UA_Server *server, UA_ByteString *buffer, size_t *pos,
                      UA_NetworkMessage *nm, UA_PubSubConnection *connection);
 
-UA_StatusCode
-receiveBufferedNetworkMessage(UA_Server *server, UA_ReaderGroup *readerGroup,
-                              UA_PubSubConnection *connection);
-
-/* It serves as the entry point into reader processing and is called when
- * a publish is received, and the topic matches with one or more readers. */
-void processMqttSubscriberCallback(UA_Server *server, UA_ReaderGroup *readerGroup,
-                      UA_PubSubConnection *connection, UA_ByteString *msg,
-                      UA_ByteString *topic);
-
-UA_StatusCode
-decodeNetworkMessageJson(UA_Server *server, UA_ByteString *buffer, size_t *pos,
-                         UA_NetworkMessage *nm, UA_PubSubConnection *connection);
-
 #ifdef UA_ENABLE_PUBSUB_SKS
 /*********************************************************/
 /*                    SecurityGroup                      */
@@ -624,6 +797,119 @@ void
 removeSecurityGroup(UA_Server *server, UA_SecurityGroup *securityGroup);
 
 #endif /* UA_ENABLE_PUBSUB_SKS */
+
+/******************/
+/* PubSub Manager */
+/******************/
+
+typedef struct UA_TopicAssign {
+    UA_ReaderGroup *rgIdentifier;
+    UA_String topic;
+    TAILQ_ENTRY(UA_TopicAssign) listEntry;
+} UA_TopicAssign;
+
+typedef enum {
+    UA_WRITER_GROUP = 0,
+    UA_DATA_SET_WRITER = 1,
+} UA_ReserveIdType;
+
+typedef struct UA_ReserveId {
+    UA_UInt16 id;
+    UA_ReserveIdType reserveIdType;
+    UA_String transportProfileUri;
+    UA_NodeId sessionId;
+    ZIP_ENTRY(UA_ReserveId) treeEntry;
+} UA_ReserveId;
+
+typedef ZIP_HEAD(UA_ReserveIdTree, UA_ReserveId) UA_ReserveIdTree;
+
+typedef struct UA_PubSubManager {
+    UA_UInt64 defaultPublisherId;
+    /* Connections and PublishedDataSets can exist alone (own lifecycle) -> top
+     * level components */
+    size_t connectionsSize;
+    TAILQ_HEAD(, UA_PubSubConnection) connections;
+
+    size_t publishedDataSetsSize;
+    TAILQ_HEAD(, UA_PublishedDataSet) publishedDataSets;
+
+    size_t subscribedDataSetsSize;
+    TAILQ_HEAD(, UA_StandaloneSubscribedDataSet) subscribedDataSets;
+
+    size_t topicAssignSize;
+    TAILQ_HEAD(, UA_TopicAssign) topicAssign;
+
+    size_t reserveIdsSize;
+    UA_ReserveIdTree reserveIds;
+
+#ifdef UA_ENABLE_PUBSUB_SKS
+    LIST_HEAD(, UA_PubSubKeyStorage) pubSubKeyList;
+
+    size_t securityGroupsSize;
+    TAILQ_HEAD(, UA_SecurityGroup) securityGroups;
+#endif
+
+#ifndef UA_ENABLE_PUBSUB_INFORMATIONMODEL
+    UA_UInt32 uniqueIdCount;
+#endif
+} UA_PubSubManager;
+
+UA_StatusCode
+UA_PubSubManager_addPubSubTopicAssign(UA_Server *server, UA_ReaderGroup *readerGroup,
+                                      UA_String topic);
+
+UA_StatusCode
+UA_PubSubManager_reserveIds(UA_Server *server, UA_NodeId sessionId, UA_UInt16 numRegWriterGroupIds,
+                            UA_UInt16 numRegDataSetWriterIds, UA_String transportProfileUri,
+                            UA_UInt16 **writerGroupIds, UA_UInt16 **dataSetWriterIds);
+
+void
+UA_PubSubManager_freeIds(UA_Server *server);
+
+void
+UA_PubSubManager_init(UA_Server *server, UA_PubSubManager *pubSubManager);
+
+void
+UA_PubSubManager_shutdown(UA_Server *server, UA_PubSubManager *pubSubManager);
+
+void
+UA_PubSubManager_delete(UA_Server *server, UA_PubSubManager *pubSubManager);
+
+#ifndef UA_ENABLE_PUBSUB_INFORMATIONMODEL
+void
+UA_PubSubManager_generateUniqueNodeId(UA_PubSubManager *psm, UA_NodeId *nodeId);
+#endif
+
+#ifdef UA_ENABLE_PUBSUB_FILE_CONFIG
+/* Decodes the information from the ByteString. If the decoded content is a
+ * PubSubConfiguration in a UABinaryFileDataType-object. It will overwrite the
+ * current PubSub configuration from the server. */
+UA_StatusCode
+UA_PubSubManager_loadPubSubConfigFromByteString(UA_Server *server,
+                                                const UA_ByteString buffer);
+
+/* Saves the current PubSub configuration of a server in a byteString. */
+UA_StatusCode
+UA_PubSubManager_getEncodedPubSubConfiguration(UA_Server *server,
+                                               UA_ByteString *buffer);
+#endif
+
+UA_Guid
+UA_PubSubManager_generateUniqueGuid(UA_Server *server);
+
+UA_UInt32
+UA_PubSubConfigurationVersionTimeDifference(void);
+
+/*************************************************/
+/*      PubSub component monitoring              */
+/*************************************************/
+
+#ifdef UA_ENABLE_PUBSUB_MONITORING
+
+UA_StatusCode
+UA_PubSubManager_setDefaultMonitoringCallbacks(UA_PubSubMonitoringInterface *monitoringInterface);
+
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 
 #endif /* UA_ENABLE_PUBSUB */
 

@@ -10,9 +10,9 @@
 #include <open62541/server_config_default.h>
 #include <open62541/types.h>
 
-#include <stddef.h>
+#include <check.h>
+#include <stdlib.h>
 
-#include "check.h"
 #include "testing_clock.h"
 #include "testing_networklayers.h"
 
@@ -32,6 +32,7 @@ UA_NodeId outNodeId;
 
 static void setup(void) {
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig_setDefault(UA_Server_getConfig(server));
 
     UA_StatusCode retval = UA_Server_run_startup(server);
@@ -198,6 +199,7 @@ END_TEST
 
 static void setupIndexRange(void) {
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig_setDefault(UA_Server_getConfig(server));
 
     UA_StatusCode retval = UA_Server_run_startup(server);

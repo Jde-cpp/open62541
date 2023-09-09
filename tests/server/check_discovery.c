@@ -9,13 +9,16 @@
 #include "server/ua_server_internal.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 
 #include "testing_clock.h"
 #include "thread_wrapper.h"
 #ifndef WIN32
 #include <sys/stat.h>
 #endif
+
 #include <check.h>
+#include <stdlib.h>
 
 #ifndef _WIN32
 #include <sys/stat.h>
@@ -48,7 +51,6 @@ THREAD_CALLBACK(serverloop_lds) {
 static void
 configure_lds_server(UA_Server *pServer) {
     UA_ServerConfig *config_lds = UA_Server_getConfig(pServer);
-    UA_ServerConfig_setDefault(config_lds);
 
     config_lds->applicationDescription.applicationType =
         UA_APPLICATIONTYPE_DISCOVERYSERVER;
@@ -458,7 +460,7 @@ Client_filter_locale(void) {
 // Test if registered server is returned from LDS using FindServersOnNetwork
 static void
 Client_find_on_network_registered(void) {
-    char urls[2][64];
+    char urls[2][384];
     UA_String expectedUris[2];
     char hostname[256];
 
@@ -468,8 +470,8 @@ Client_find_on_network_registered(void) {
     // otherwise gcc >7.2 will complain about format-truncation, but we want it
     // here
     void *hostnameVoid = (void*)hostname;
-    snprintf(urls[0], 64, "LDS_test-%s", (char*)hostnameVoid);
-    snprintf(urls[1], 64, "Register_test-%s", (char*)hostnameVoid);
+    snprintf(urls[0], 384, "LDS_test-%s", (char*)hostnameVoid);
+    snprintf(urls[1], 384, "Register_test-%s", (char*)hostnameVoid);
     expectedUris[0] = UA_STRING(urls[0]);
     expectedUris[1] = UA_STRING(urls[1]);
     FindOnNetworkAndCheck(expectedUris, 2, NULL, NULL, NULL, 0);
@@ -550,7 +552,7 @@ START_TEST(Server_new_shutdown_delete) {
     UA_Server *pServer = UA_Server_new();
     configure_lds_server(pServer);
     UA_StatusCode retval = UA_Server_run_shutdown(pServer);
-    ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+    ck_assert_uint_ne(retval, UA_STATUSCODE_GOOD);
     UA_Server_delete(pServer);
 }
 END_TEST

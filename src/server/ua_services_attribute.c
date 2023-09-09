@@ -19,7 +19,6 @@
  *    Copyright 2020 (c) Christian von Arnim, ISW University of Stuttgart  (for VDW and umati)
  */
 
-#include "open62541/plugin/log.h"
 #include "ua_server_internal.h"
 #include "ua_types_encoding_binary.h"
 #include "ua_services.h"
@@ -28,38 +27,41 @@
 #include <open62541/plugin/historydatabase.h>
 #endif
 
+static const UA_NodeAttributesMask attr2mask[28] = {
+    UA_NODEATTRIBUTESMASK_NODEID,
+    UA_NODEATTRIBUTESMASK_NODECLASS,
+    UA_NODEATTRIBUTESMASK_BROWSENAME,
+    UA_NODEATTRIBUTESMASK_DISPLAYNAME,
+    UA_NODEATTRIBUTESMASK_DESCRIPTION,
+    UA_NODEATTRIBUTESMASK_WRITEMASK,
+    UA_NODEATTRIBUTESMASK_USERWRITEMASK,
+    UA_NODEATTRIBUTESMASK_ISABSTRACT,
+    UA_NODEATTRIBUTESMASK_SYMMETRIC,
+    UA_NODEATTRIBUTESMASK_INVERSENAME,
+    UA_NODEATTRIBUTESMASK_CONTAINSNOLOOPS,
+    UA_NODEATTRIBUTESMASK_EVENTNOTIFIER,
+    UA_NODEATTRIBUTESMASK_VALUE,
+    UA_NODEATTRIBUTESMASK_DATATYPE,
+    UA_NODEATTRIBUTESMASK_VALUERANK,
+    UA_NODEATTRIBUTESMASK_ARRAYDIMENSIONS,
+    UA_NODEATTRIBUTESMASK_ACCESSLEVEL,
+    UA_NODEATTRIBUTESMASK_USERACCESSLEVEL,
+    UA_NODEATTRIBUTESMASK_MINIMUMSAMPLINGINTERVAL,
+    UA_NODEATTRIBUTESMASK_HISTORIZING,
+    UA_NODEATTRIBUTESMASK_EXECUTABLE,
+    UA_NODEATTRIBUTESMASK_USEREXECUTABLE,
+    UA_NODEATTRIBUTESMASK_DATATYPEDEFINITION,
+    UA_NODEATTRIBUTESMASK_ROLEPERMISSIONS,
+    UA_NODEATTRIBUTESMASK_ROLEPERMISSIONS,
+    UA_NODEATTRIBUTESMASK_ACCESSRESTRICTIONS,
+    UA_NODEATTRIBUTESMASK_ACCESSLEVEL
+};
+
 static UA_UInt32
 attributeId2AttributeMask(UA_AttributeId id) {
-    switch(id) {
-    case UA_ATTRIBUTEID_NODEID: return UA_NODEATTRIBUTESMASK_NODEID;
-    case UA_ATTRIBUTEID_NODECLASS: return UA_NODEATTRIBUTESMASK_NODECLASS;
-    case UA_ATTRIBUTEID_BROWSENAME: return UA_NODEATTRIBUTESMASK_BROWSENAME;
-    case UA_ATTRIBUTEID_DISPLAYNAME: return UA_NODEATTRIBUTESMASK_DISPLAYNAME;
-    case UA_ATTRIBUTEID_DESCRIPTION: return UA_NODEATTRIBUTESMASK_DESCRIPTION;
-    case UA_ATTRIBUTEID_WRITEMASK: return UA_NODEATTRIBUTESMASK_WRITEMASK;
-    case UA_ATTRIBUTEID_USERWRITEMASK: return UA_NODEATTRIBUTESMASK_USERWRITEMASK;
-    case UA_ATTRIBUTEID_ISABSTRACT: return UA_NODEATTRIBUTESMASK_ISABSTRACT;
-    case UA_ATTRIBUTEID_SYMMETRIC: return UA_NODEATTRIBUTESMASK_SYMMETRIC;
-    case UA_ATTRIBUTEID_INVERSENAME: return UA_NODEATTRIBUTESMASK_INVERSENAME;
-    case UA_ATTRIBUTEID_CONTAINSNOLOOPS: return UA_NODEATTRIBUTESMASK_CONTAINSNOLOOPS;
-    case UA_ATTRIBUTEID_EVENTNOTIFIER: return UA_NODEATTRIBUTESMASK_EVENTNOTIFIER;
-    case UA_ATTRIBUTEID_VALUE: return UA_NODEATTRIBUTESMASK_VALUE;
-    case UA_ATTRIBUTEID_DATATYPE: return UA_NODEATTRIBUTESMASK_DATATYPE;
-    case UA_ATTRIBUTEID_VALUERANK: return UA_NODEATTRIBUTESMASK_VALUERANK;
-    case UA_ATTRIBUTEID_ARRAYDIMENSIONS: return UA_NODEATTRIBUTESMASK_ARRAYDIMENSIONS;
-    case UA_ATTRIBUTEID_ACCESSLEVEL: return UA_NODEATTRIBUTESMASK_ACCESSLEVEL;
-    case UA_ATTRIBUTEID_USERACCESSLEVEL: return UA_NODEATTRIBUTESMASK_USERACCESSLEVEL;
-    case UA_ATTRIBUTEID_MINIMUMSAMPLINGINTERVAL: return UA_NODEATTRIBUTESMASK_MINIMUMSAMPLINGINTERVAL;
-    case UA_ATTRIBUTEID_HISTORIZING: return UA_NODEATTRIBUTESMASK_HISTORIZING;
-    case UA_ATTRIBUTEID_EXECUTABLE: return UA_NODEATTRIBUTESMASK_EXECUTABLE;
-    case UA_ATTRIBUTEID_USEREXECUTABLE: return UA_NODEATTRIBUTESMASK_USEREXECUTABLE;
-    case UA_ATTRIBUTEID_DATATYPEDEFINITION: return UA_NODEATTRIBUTESMASK_DATATYPEDEFINITION;
-    case UA_ATTRIBUTEID_ROLEPERMISSIONS: return UA_NODEATTRIBUTESMASK_ROLEPERMISSIONS;
-    case UA_ATTRIBUTEID_USERROLEPERMISSIONS: return UA_NODEATTRIBUTESMASK_ROLEPERMISSIONS;
-    case UA_ATTRIBUTEID_ACCESSRESTRICTIONS: return UA_NODEATTRIBUTESMASK_ACCESSRESTRICTIONS;
-    case UA_ATTRIBUTEID_ACCESSLEVELEX: return UA_NODEATTRIBUTESMASK_ACCESSLEVEL;
-    default: return UA_NODEATTRIBUTESMASK_NONE;
-    }
+    if(UA_UNLIKELY(id > UA_ATTRIBUTEID_ACCESSLEVELEX))
+        return UA_NODEATTRIBUTESMASK_NONE;
+    return attr2mask[id];
 }
 
 /******************/
@@ -75,6 +77,7 @@ getUserWriteMask(UA_Server *server, const UA_Session *session,
     if(session == &server->adminSession)
         return 0xFFFFFFFF; /* the local admin user has all rights */
     UA_UInt32 mask = head->writeMask;
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     UA_UNLOCK(&server->serviceMutex);
     mask &= server->config.accessControl.
         getUserRightsMask(server, &server->config.accessControl,
@@ -99,6 +102,7 @@ getUserAccessLevel(UA_Server *server, const UA_Session *session,
     if(session == &server->adminSession)
         return 0xFF; /* the local admin user has all rights */
     UA_Byte retval = node->accessLevel;
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     UA_UNLOCK(&server->serviceMutex);
     retval &= server->config.accessControl.
         getUserAccessLevel(server, &server->config.accessControl,
@@ -114,6 +118,7 @@ getUserExecutable(UA_Server *server, const UA_Session *session,
                   const UA_MethodNode *node) {
     if(session == &server->adminSession)
         return true; /* the local admin user has all rights */
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     UA_UNLOCK(&server->serviceMutex);
     UA_Boolean userExecutable = node->executable;
     userExecutable &=
@@ -157,6 +162,7 @@ static UA_StatusCode
 readValueAttributeFromNode(UA_Server *server, UA_Session *session,
                            const UA_VariableNode *vn, UA_DataValue *v,
                            UA_NumericRange *rangeptr) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     /* Update the value by the user callback */
     if(vn->value.data.callback.onRead) {
         UA_UNLOCK(&server->serviceMutex);
@@ -191,6 +197,7 @@ readValueAttributeFromDataSource(UA_Server *server, UA_Session *session,
                                  const UA_VariableNode *vn, UA_DataValue *v,
                                  UA_TimestampsToReturn timestamps,
                                  UA_NumericRange *rangeptr) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     if(!vn->value.dataSource.read)
         return UA_STATUSCODE_BADINTERNALERROR;
     UA_Boolean sourceTimeStamp = (timestamps == UA_TIMESTAMPSTORETURN_SOURCE ||
@@ -357,7 +364,7 @@ getStructureDefinition(const UA_DataType *type, UA_StructureDefinition *def) {
 
     for(size_t cnt = 0; cnt < def->fieldsSize; cnt++) {
         const UA_DataTypeMember *m = &type->members[cnt];
-        def->fields[cnt].valueRank = (m->isArray) ? 1 : -1;
+        def->fields[cnt].valueRank = (m->isArray) ? UA_VALUERANK_ONE_DIMENSION : UA_VALUERANK_SCALAR;
         def->fields[cnt].arrayDimensions = NULL;
         def->fields[cnt].arrayDimensionsSize = 0;
         def->fields[cnt].name = UA_STRING((char *)(uintptr_t)m->memberName);
@@ -378,8 +385,8 @@ void
 ReadWithNode(const UA_Node *node, UA_Server *server, UA_Session *session,
              UA_TimestampsToReturn timestampsToReturn,
              const UA_ReadValueId *id, UA_DataValue *v) {
-    UA_LOG_NODEID_DEBUG(&node->head.nodeId,
-                        UA_LOG_DEBUG_SESSION(&server->config.logger, session,
+    UA_LOG_NODEID_TRACE(&node->head.nodeId,
+                        UA_LOG_TRACE_SESSION(&server->config.logger, session,
                                              "Read attribute %"PRIi32 " of Node %.*s",
                                              id->attributeId, (int)nodeIdStr.length,
                                              nodeIdStr.data));
@@ -449,6 +456,11 @@ ReadWithNode(const UA_Node *node, UA_Server *server, UA_Session *session,
         break;
     case UA_ATTRIBUTEID_INVERSENAME:
         CHECK_NODECLASS(UA_NODECLASS_REFERENCETYPE);
+        if(node->referenceTypeNode.symmetric) {
+            /* Symmetric reference types don't have an inverse name */
+            retval = UA_STATUSCODE_BADATTRIBUTEIDINVALID;
+            break;
+        }
         retval = UA_Variant_setScalarCopy(&v->value, &node->referenceTypeNode.inverseName,
                                           &UA_TYPES[UA_TYPES_LOCALIZEDTEXT]);
         break;
@@ -565,6 +577,15 @@ ReadWithNode(const UA_Node *node, UA_Server *server, UA_Session *session,
 #endif
         retval = UA_STATUSCODE_BADATTRIBUTEIDINVALID;
         break; }
+
+    case UA_ATTRIBUTEID_ROLEPERMISSIONS:
+    case UA_ATTRIBUTEID_USERROLEPERMISSIONS:
+    case UA_ATTRIBUTEID_ACCESSRESTRICTIONS:
+    case UA_ATTRIBUTEID_ACCESSLEVELEX:
+        /* TODO: Add support for the attributes from the 1.04 spec */
+        retval = UA_STATUSCODE_BADNOTSUPPORTED;
+        break;
+
     default:
         retval = UA_STATUSCODE_BADATTRIBUTEIDINVALID;
     }
@@ -809,18 +830,10 @@ typeEquivalence(const UA_DataType *t) {
     return k;
 }
 
-static const UA_NodeId enumNodeId = {0, UA_NODEIDTYPE_NUMERIC, {UA_NS0ID_ENUMERATION}};
-
 UA_Boolean
 compatibleValueDataType(UA_Server *server, const UA_DataType *dataType,
                         const UA_NodeId *constraintDataType) {
     if(compatibleDataTypes(server, &dataType->typeId, constraintDataType))
-        return true;
-
-    /* The constraint is an enum -> allow writing Int32 */
-    if(UA_NodeId_equal(&dataType->typeId, &UA_TYPES[UA_TYPES_INT32].typeId) &&
-       isNodeInTree_singleRef(server, constraintDataType, &enumNodeId,
-                              UA_REFERENCETYPEINDEX_HASSUBTYPE))
         return true;
 
     /* For actual values, the constraint DataType may be a subtype of the
@@ -1161,7 +1174,7 @@ adjustValueType(UA_Server *server, UA_Variant *value,
     /* Unwrap ExtensionObject arrays if they all contain the same DataType */
     unwrapEOArray(server, value);
 
-    const UA_DataType *targetDataType = UA_findDataType(targetDataTypeId);
+    const UA_DataType *targetDataType = UA_findDataTypeWithCustom(targetDataTypeId, server->config.customDataTypes);
     if(!targetDataType) {
         /* Type might not have been found, if it's a non-NS0 type or an abstract type. */
         return;
@@ -1258,9 +1271,9 @@ writeArrayDimensionsAttribute(UA_Server *server, UA_Session *session,
 
 /* Stack layout: ... | node | type */
 static UA_StatusCode
-writeValueRankAttribute(UA_Server *server, UA_Session *session,
-                        UA_VariableNode *node, const UA_VariableTypeNode *type,
-                        UA_Int32 valueRank) {
+writeValueRank(UA_Server *server, UA_Session *session,
+               UA_VariableNode *node, const UA_VariableTypeNode *type,
+               UA_Int32 valueRank) {
     UA_assert(node != NULL);
     UA_assert(type != NULL);
 
@@ -1410,6 +1423,7 @@ writeNodeValueAttribute(UA_Server *server, UA_Session *session,
                         const UA_String *indexRange) {
     UA_assert(node != NULL);
     UA_assert(session != NULL);
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
 
     /* Parse the range */
     UA_NumericRange range;
@@ -1621,7 +1635,8 @@ updateLocalizedText(const UA_LocalizedText *source, UA_LocalizedText *target) {
 static void
 triggerImmediateDataChange(UA_Server *server, UA_Session *session,
                            UA_Node *node, const UA_WriteValue *wvalue) {
-    for(UA_MonitoredItem *mon = node->head.monitoredItems; mon != NULL; mon = mon->next) {
+    UA_MonitoredItem *mon = node->head.monitoredItems;
+    for(; mon != NULL; mon = mon->sampling.nodeListNext) {
         if(mon->itemToMonitor.attributeId != wvalue->attributeId)
             continue;
         UA_DataValue value;
@@ -1652,8 +1667,8 @@ copyAttributeIntoNode(UA_Server *server, UA_Session *session,
     UA_UInt32 userWriteMask = getUserWriteMask(server, session, &node->head);
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
-    UA_LOG_NODEID_DEBUG(&node->head.nodeId,
-                        UA_LOG_DEBUG_SESSION(&server->config.logger, session,
+    UA_LOG_NODEID_TRACE(&node->head.nodeId,
+                        UA_LOG_TRACE_SESSION(&server->config.logger, session,
                                              "Write attribute %"PRIi32 " of Node %.*s",
                                              wvalue->attributeId, (int)nodeIdStr.length,
                                              nodeIdStr.data));
@@ -1756,8 +1771,8 @@ copyAttributeIntoNode(UA_Server *server, UA_Session *session,
         CHECK_USERWRITEMASK(UA_WRITEMASK_VALUERANK);
         CHECK_DATATYPE_SCALAR(INT32);
         GET_NODETYPE;
-        retval = writeValueRankAttribute(server, session, &node->variableNode,
-                                         type, *(const UA_Int32*)value);
+        retval = writeValueRank(server, session, &node->variableNode,
+                                type, *(const UA_Int32*)value);
         UA_NODESTORE_RELEASE(server, (const UA_Node*)type);
         break;
     case UA_ATTRIBUTEID_ARRAYDIMENSIONS:
@@ -1815,7 +1830,7 @@ copyAttributeIntoNode(UA_Server *server, UA_Session *session,
     return UA_STATUSCODE_GOOD;
 }
 
-static void
+void
 Operation_Write(UA_Server *server, UA_Session *session, void *context,
                 const UA_WriteValue *wv, UA_StatusCode *result) {
     UA_assert(session != NULL);
@@ -1838,8 +1853,6 @@ Service_Write(UA_Server *server, UA_Session *session,
         response->responseHeader.serviceResult = UA_STATUSCODE_BADTOOMANYOPERATIONS;
         return;
     }
-
-    UA_LOCK_ASSERT(&server->serviceMutex, 1);
 
     response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session,
@@ -2112,8 +2125,7 @@ writeObjectProperty(UA_Server *server, const UA_NodeId objectId,
         return retval;
     }
 
-    retval = writeValueAttribute(server, &server->adminSession,
-                                 &bpr.targets[0].targetId.nodeId, &value);
+    retval = writeValueAttribute(server, bpr.targets[0].targetId.nodeId, &value);
 
     UA_BrowsePathResult_clear(&bpr);
     return retval;

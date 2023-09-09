@@ -31,6 +31,7 @@ typedef struct UA_Subscription UA_Subscription;
 typedef struct UA_PublishResponseEntry {
     SIMPLEQ_ENTRY(UA_PublishResponseEntry) listEntry;
     UA_UInt32 requestId;
+    UA_DateTime maxTime; /* Based on the TimeoutHint of the request */
     UA_PublishResponse response;
 } UA_PublishResponseEntry;
 #endif
@@ -42,6 +43,7 @@ typedef struct {
     UA_Boolean        activated;
     void             *sessionHandle; /* pointer assigned in userland-callback */
     UA_NodeId         sessionId;
+    UA_String         clientUserIdOfSession;
     UA_UInt32         maxRequestMessageSize;
     UA_UInt32         maxResponseMessageSize;
     UA_Double         timeout; /* in ms */

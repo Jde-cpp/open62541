@@ -30,7 +30,6 @@ void
 UA_SecureChannel_init(UA_SecureChannel *channel) {
     /* Normal linked lists are initialized by zeroing out */
     memset(channel, 0, sizeof(UA_SecureChannel));
-    channel->state = UA_SECURECHANNELSTATE_FRESH;
     SIMPLEQ_INIT(&channel->completeChunks);
     SIMPLEQ_INIT(&channel->decryptedChunks);
 }
@@ -85,7 +84,7 @@ hideErrors(UA_TcpErrorMessage *const error) {
 
 UA_Boolean
 UA_SecureChannel_isConnected(UA_SecureChannel *channel) {
-    return (channel->state >= UA_SECURECHANNELSTATE_CONNECTING &&
+    return (channel->state > UA_SECURECHANNELSTATE_CLOSED &&
             channel->state < UA_SECURECHANNELSTATE_CLOSING);
 }
 
@@ -147,10 +146,14 @@ UA_SecureChannel_deleteBuffered(UA_SecureChannel *channel) {
 }
 
 void
-UA_SecureChannel_shutdown(UA_SecureChannel *channel) {
+UA_SecureChannel_shutdown(UA_SecureChannel *channel,
+                          UA_ShutdownReason shutdownReason) {
     /* No open socket or already closing -> nothing to do */
     if(!UA_SecureChannel_isConnected(channel))
         return;
+
+    /* Set the shutdown event for diagnostics */
+    channel->shutdownReason= shutdownReason;
 
     /* Trigger the async closing of the connection */
     UA_ConnectionManager *cm = channel->connectionManager;
@@ -265,12 +268,10 @@ UA_SecureChannel_sendAsymmetricOPNMessage(UA_SecureChannel *channel,
     /* Add padding to the chunk. Also pad if the securityMode is SIGN_ONLY,
      * since we are using asymmetric communication to exchange keys and thus
      * need to encrypt. */
-#ifdef UA_ENABLE_ENCRYPTION
     if(channel->securityMode != UA_MESSAGESECURITYMODE_NONE)
         padChunk(channel, &channel->securityPolicy->asymmetricModule.cryptoModule,
                  &buf.data[UA_SECURECHANNEL_CHANNELHEADER_LENGTH + securityHeaderLength],
                  &buf_pos);
-#endif
 
     /* The total message length */
     pre_sig_length = (uintptr_t)buf_pos - (uintptr_t)buf.data;
@@ -286,11 +287,9 @@ UA_SecureChannel_sendAsymmetricOPNMessage(UA_SecureChannel *channel,
                              securityHeaderLength, requestId, &encryptedLength);
     UA_CHECK_STATUS(res, goto error);
 
-#ifdef UA_ENABLE_ENCRYPTION
     res = signAndEncryptAsym(channel, pre_sig_length, &buf,
                              securityHeaderLength, total_length);
     UA_CHECK_STATUS(res, goto error);
-#endif
 
     /* Send the message, the buffer is freed in the network layer */
     buf.length = encryptedLength;
@@ -378,13 +377,11 @@ sendSymmetricChunk(UA_MessageContext *mc) {
                          (long unsigned int)
                          ((uintptr_t)mc->buf_pos - (uintptr_t)mc->messageBuffer.data));
 
-#ifdef UA_ENABLE_ENCRYPTION
     /* Add padding if the message is encrypted */
     if(channel->securityMode == UA_MESSAGESECURITYMODE_SIGNANDENCRYPT)
         padChunk(channel, &sp->symmetricModule.cryptoModule,
                  &mc->messageBuffer.data[UA_SECURECHANNEL_SYMMETRIC_HEADER_UNENCRYPTEDLENGTH],
                  &mc->buf_pos);
-#endif
 
     /* Compute the total message length */
     pre_sig_length = (uintptr_t)mc->buf_pos - (uintptr_t)mc->messageBuffer.data;
@@ -410,11 +407,9 @@ sendSymmetricChunk(UA_MessageContext *mc) {
     res = encodeHeadersSym(mc, total_length);
     UA_CHECK_STATUS(res, goto error);
 
-#ifdef UA_ENABLE_ENCRYPTION
     /* Sign and encrypt the messge */
     res = signAndEncryptSym(mc, pre_sig_length, total_length);
     UA_CHECK_STATUS(res, goto error);
-#endif
 
     /* Send the chunk. The buffer is freed in the network layer. If sending goes
      * wrong, the connection is removed in the next iteration of the
@@ -583,7 +578,7 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
     if(asymHeader.senderCertificate.length > 0) {
         if(channel->certificateVerification)
             res = channel->certificateVerification->
-                verifyCertificate(channel->certificateVerification->context,
+                verifyCertificate(channel->certificateVerification,
                                   &asymHeader.senderCertificate);
         else
             res = UA_STATUSCODE_BADINTERNALERROR;
@@ -900,7 +895,7 @@ extractCompleteChunk(UA_SecureChannel *channel, const UA_ByteString *buffer,
     chunkPayload.data = &buffer->data[*offset];
     chunkPayload.length = hdr.messageSize;
 
-    if(msgType == UA_MESSAGETYPE_HEL || msgType == UA_MESSAGETYPE_ACK ||
+    if(msgType == UA_MESSAGETYPE_RHE || msgType == UA_MESSAGETYPE_HEL || msgType == UA_MESSAGETYPE_ACK ||
        msgType == UA_MESSAGETYPE_ERR || msgType == UA_MESSAGETYPE_OPN) {
         if(chunkType != UA_CHUNKTYPE_FINAL)
             return UA_STATUSCODE_BADTCPMESSAGETYPEINVALID;

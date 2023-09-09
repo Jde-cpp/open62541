@@ -53,12 +53,12 @@ createEvent(UA_Server *server, const UA_NodeId eventType, UA_NodeId *outNodeId) 
     UA_NodeId newNodeId = UA_NODEID_NULL;
     UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
     UA_StatusCode retval = addNode(server, UA_NODECLASS_OBJECT,
-                                   &UA_NODEID_NULL, /* Set a random unused NodeId */
-                                   &UA_NODEID_NULL, /* No parent */
-                                   &UA_NODEID_NULL, /* No parent reference */
-                                   name,            /* an event does not have a name */
-                                   &eventType,      /* the type of the event */
-                                   (const UA_NodeAttributes*)&oAttr, /* default attributes are fine */
+                                   UA_NODEID_NULL, /* Set a random unused NodeId */
+                                   UA_NODEID_NULL, /* No parent */
+                                   UA_NODEID_NULL, /* No parent reference */
+                                   name,           /* an event does not have a name */
+                                   eventType,      /* the type of the event */
+                                   &oAttr,         /* default attributes are fine */
                                    &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES],
                                    NULL,           /* no node context */
                                    &newNodeId);
@@ -83,8 +83,7 @@ createEvent(UA_Server *server, const UA_NodeId eventType, UA_NodeId *outNodeId) 
     UA_Variant value;
     UA_Variant_init(&value);
     UA_Variant_setScalar(&value, (void*)(uintptr_t)&eventType, &UA_TYPES[UA_TYPES_NODEID]);
-    retval = writeValueAttribute(server, &server->adminSession,
-                                 &bpr.targets[0].targetId.nodeId, &value);
+    retval = writeValueAttribute(server, bpr.targets[0].targetId.nodeId, &value);
     UA_BrowsePathResult_clear(&bpr);
     if(retval != UA_STATUSCODE_GOOD) {
         deleteNode(server, newNodeId, true);
@@ -120,8 +119,7 @@ eventSetStandardFields(UA_Server *server, const UA_NodeId *event,
     UA_Variant value;
     UA_Variant_init(&value);
     UA_Variant_setScalarCopy(&value, origin, &UA_TYPES[UA_TYPES_NODEID]);
-    retval = writeValueAttribute(server, &server->adminSession,
-                                 &bpr.targets[0].targetId.nodeId, &value);
+    retval = writeValueAttribute(server, bpr.targets[0].targetId.nodeId, &value);
     UA_Variant_clear(&value);
     UA_BrowsePathResult_clear(&bpr);
     if(retval != UA_STATUSCODE_GOOD)
@@ -137,8 +135,7 @@ eventSetStandardFields(UA_Server *server, const UA_NodeId *event,
     }
     UA_DateTime rcvTime = UA_DateTime_now();
     UA_Variant_setScalar(&value, &rcvTime, &UA_TYPES[UA_TYPES_DATETIME]);
-    retval = writeValueAttribute(server, &server->adminSession,
-                                 &bpr.targets[0].targetId.nodeId, &value);
+    retval = writeValueAttribute(server, bpr.targets[0].targetId.nodeId, &value);
     UA_BrowsePathResult_clear(&bpr);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
@@ -158,8 +155,7 @@ eventSetStandardFields(UA_Server *server, const UA_NodeId *event,
     }
     UA_Variant_init(&value);
     UA_Variant_setScalar(&value, &eventId, &UA_TYPES[UA_TYPES_BYTESTRING]);
-    retval = writeValueAttribute(server, &server->adminSession,
-                                 &bpr.targets[0].targetId.nodeId, &value);
+    retval = writeValueAttribute(server, bpr.targets[0].targetId.nodeId, &value);
     UA_BrowsePathResult_clear(&bpr);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ByteString_clear(&eventId);
@@ -180,14 +176,16 @@ eventSetStandardFields(UA_Server *server, const UA_NodeId *event,
 UA_StatusCode
 UA_MonitoredItem_addEvent(UA_Server *server, UA_MonitoredItem *mon,
                           const UA_NodeId *event) {
-    UA_Notification *notification = UA_Notification_new();
-    if(!notification)
-        return UA_STATUSCODE_BADOUTOFMEMORY;
-
+    /* Get the filter */
     if(mon->parameters.filter.content.decoded.type != &UA_TYPES[UA_TYPES_EVENTFILTER])
         return UA_STATUSCODE_BADFILTERNOTALLOWED;
     UA_EventFilter *eventFilter = (UA_EventFilter*)
         mon->parameters.filter.content.decoded.data;
+
+    /* Allocate memory for the notification */
+    UA_Notification *notification = UA_Notification_new();
+    if(!notification)
+        return UA_STATUSCODE_BADOUTOFMEMORY;
 
     /* The MonitoredItem must be attached to a Subscription. This code path is
      * not taken for local MonitoredItems (once they are enabled for Events). */
@@ -390,7 +388,8 @@ triggerEvent(UA_Server *server, const UA_NodeId eventNodeId,
         }
 
         /* Add event to monitoreditems */
-        for(UA_MonitoredItem *mon = node->head.monitoredItems; mon != NULL; mon = mon->next) {
+        UA_MonitoredItem *mon = node->head.monitoredItems;
+        for(; mon != NULL; mon = mon->sampling.nodeListNext) {
             /* Is this an Event-MonitoredItem? */
             if(mon->itemToMonitor.attributeId != UA_ATTRIBUTEID_EVENTNOTIFIER)
                 continue;

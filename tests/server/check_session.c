@@ -12,6 +12,7 @@
 #include "client/ua_client_internal.h"
 
 #include <check.h>
+#include <stdlib.h>
 
 #include "thread_wrapper.h"
 
@@ -28,6 +29,7 @@ THREAD_CALLBACK(serverloop) {
 static void setup(void) {
     running = true;
     server = UA_Server_new();
+    ck_assert(server != NULL);
     UA_ServerConfig_setDefault(UA_Server_getConfig(server));
     UA_Server_run_startup(server);
     THREAD_CREATE(server_thread, serverloop);

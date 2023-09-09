@@ -11,8 +11,7 @@
 
 UA_StatusCode
 UA_EventLoopPOSIX_registerFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
-    UA_LOCK(&el->elMutex);
-
+    UA_LOCK_ASSERT(&el->elMutex, 1);
     UA_LOG_DEBUG(el->eventLoop.logger, UA_LOGCATEGORY_EVENTLOOP,
                  "Registering fd: %u", (unsigned)rfd->fd);
 
@@ -20,7 +19,6 @@ UA_EventLoopPOSIX_registerFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
     UA_RegisteredFD **fds_tmp = (UA_RegisteredFD**)
         UA_realloc(el->fds, sizeof(UA_RegisteredFD*) * (el->fdsSize + 1));
     if(!fds_tmp) {
-        UA_UNLOCK(&el->elMutex);
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
     el->fds = fds_tmp;
@@ -28,21 +26,19 @@ UA_EventLoopPOSIX_registerFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
     /* Add to the last entry */
     el->fds[el->fdsSize] = rfd;
     el->fdsSize++;
-
-    UA_UNLOCK(&el->elMutex);
     return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode
 UA_EventLoopPOSIX_modifyFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
     /* Do nothing, it is enough if the data was changed in the rfd */
+    UA_LOCK_ASSERT(&el->elMutex, 1);
     return UA_STATUSCODE_GOOD;
 }
 
 void
 UA_EventLoopPOSIX_deregisterFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
-    UA_LOCK(&el->elMutex);
-
+    UA_LOCK_ASSERT(&el->elMutex, 1);
     UA_LOG_DEBUG(el->eventLoop.logger, UA_LOGCATEGORY_EVENTLOOP,
                  "Unregistering fd: %u", (unsigned)rfd->fd);
 
@@ -54,10 +50,8 @@ UA_EventLoopPOSIX_deregisterFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
     }
 
     /* Not found? */
-    if(i == el->fdsSize) {
-        UA_UNLOCK(&el->elMutex);
+    if(i == el->fdsSize)
         return;
-    }
 
     if(el->fdsSize > 1) {
         /* Move the last entry in the ith slot and realloc. */
@@ -75,27 +69,27 @@ UA_EventLoopPOSIX_deregisterFD(UA_EventLoopPOSIX *el, UA_RegisteredFD *rfd) {
         el->fds = NULL;
         el->fdsSize = 0;
     }
-
-    UA_UNLOCK(&el->elMutex);
 }
 
 static UA_FD
 setFDSets(UA_EventLoopPOSIX *el, fd_set *readset, fd_set *writeset, fd_set *errset) {
+    UA_LOCK_ASSERT(&el->elMutex, 1);
+
     FD_ZERO(readset);
     FD_ZERO(writeset);
     FD_ZERO(errset);
     UA_FD highestfd = UA_INVALID_FD;
     for(size_t i = 0; i < el->fdsSize; i++) {
-
         UA_FD currentFD = el->fds[i]->fd;
+
         /* Add to the fd_sets */
         if(el->fds[i]->listenEvents & UA_FDEVENT_IN)
-            UA_fd_set(currentFD, readset);
+            FD_SET(currentFD, readset);
         if(el->fds[i]->listenEvents & UA_FDEVENT_OUT)
-            UA_fd_set(currentFD, writeset);
+            FD_SET(currentFD, writeset);
 
         /* Always return errors */
-        UA_fd_set(currentFD, errset);
+        FD_SET(currentFD, errset);
 
         /* Highest fd? */
         if(currentFD > highestfd || highestfd == UA_INVALID_FD)
@@ -107,6 +101,7 @@ setFDSets(UA_EventLoopPOSIX *el, fd_set *readset, fd_set *writeset, fd_set *errs
 UA_StatusCode
 UA_EventLoopPOSIX_pollFDs(UA_EventLoopPOSIX *el, UA_DateTime listenTimeout) {
     UA_assert(listenTimeout >= 0);
+    UA_LOCK_ASSERT(&el->elMutex, 1);
 
     fd_set readset, writeset, errset;
     UA_FD highestfd = setFDSets(el, &readset, &writeset, &errset);
@@ -145,11 +140,11 @@ UA_EventLoopPOSIX_pollFDs(UA_EventLoopPOSIX *el, UA_DateTime listenTimeout) {
 
         /* Error Event */
         short event = 0;
-        if(UA_fd_isset(fd, &readset)) {
+        if(FD_ISSET(fd, &readset)) {
             event = UA_FDEVENT_IN;
-        } else if(UA_fd_isset(fd, &writeset)) {
+        } else if(FD_ISSET(fd, &writeset)) {
             event = UA_FDEVENT_OUT;
-        } else if(UA_fd_isset(fd, &errset)) {
+        } else if(FD_ISSET(fd, &errset)) {
             event = UA_FDEVENT_ERR;
         } else {
             continue;
@@ -158,9 +153,7 @@ UA_EventLoopPOSIX_pollFDs(UA_EventLoopPOSIX *el, UA_DateTime listenTimeout) {
         UA_LOG_DEBUG(el->eventLoop.logger, UA_LOGCATEGORY_EVENTLOOP,
                      "Processing event %u on fd %u", (unsigned)event, (unsigned)fd);
 
-        UA_UNLOCK(&el->elMutex);
-        rfd->callback(rfd->es, rfd, event);
-        UA_LOCK(&el->elMutex);
+        rfd->eventSourceCB(rfd->es, rfd, event);
 
         /* The fd has removed itself */
         if(i == el->fdsSize || rfd != el->fds[i])
