@@ -132,7 +132,7 @@ isTrue(uint8_t expr) {
 #define UA_CHECK_FATAL(A, EVAL, LOGGER, CAT, ...)                                        \
     UA_MACRO_EXPAND(UA_CHECK_LOG(A, EVAL, FATAL, LOGGER, CAT, __VA_ARGS__))
 #define UA_CHECK_ERROR(A, EVAL, LOGGER, CAT, ...)                                        \
-    UA_MACRO_EXPAND(UA_CHECK_LOG(A, EVAL, ERROR, LOGGER, CAT, __VA_ARGS__))
+    UA_MACRO_EXPAND(UA_CHECK_LOG(A, EVAL, ERROR, LOGGER, CAT __VA_OPT__(,) __VA_ARGS__))
 #define UA_CHECK_WARN(A, EVAL, LOGGER, CAT, ...)                                         \
     UA_MACRO_EXPAND(UA_CHECK_LOG(A, EVAL, WARNING, LOGGER, CAT, __VA_ARGS__))
 #define UA_CHECK_INFO(A, EVAL, LOGGER, CAT, ...)                                         \

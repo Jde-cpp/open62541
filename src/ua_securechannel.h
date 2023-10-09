@@ -350,13 +350,13 @@ signAndEncryptSym(UA_MessageContext *messageContext,
         UA_LOG_##LEVEL(LOGGER, UA_LOGCATEGORY_SECURECHANNEL,            \
                        "TCP %lu\t| SC %" PRIu32 "\t| " MSG "%.0s", \
                        (long unsigned)(CHANNEL)->connectionId,          \
-                       (CHANNEL)->securityToken.channelId, __VA_ARGS__); \
+                       (CHANNEL)->securityToken.channelId __VA_OPT__(,) __VA_ARGS__); \
     }
 
 #define UA_LOG_TRACE_CHANNEL(LOGGER, CHANNEL, ...)                      \
     UA_MACRO_EXPAND(UA_LOG_CHANNEL_INTERNAL(LOGGER, TRACE, CHANNEL, __VA_ARGS__, ""))
 #define UA_LOG_DEBUG_CHANNEL(LOGGER, CHANNEL, ...)                      \
-    UA_MACRO_EXPAND(UA_LOG_CHANNEL_INTERNAL(LOGGER, DEBUG, CHANNEL, __VA_ARGS__, ""))
+    UA_MACRO_EXPAND(UA_LOG_CHANNEL_INTERNAL(LOGGER, DEBUG, CHANNEL, __VA_ARGS__ __VA_OPT__(,) ""))
 #define UA_LOG_INFO_CHANNEL(LOGGER, CHANNEL, ...)                       \
     UA_MACRO_EXPAND(UA_LOG_CHANNEL_INTERNAL(LOGGER, INFO, CHANNEL, __VA_ARGS__, ""))
 #define UA_LOG_WARNING_CHANNEL(LOGGER, CHANNEL, ...)                    \

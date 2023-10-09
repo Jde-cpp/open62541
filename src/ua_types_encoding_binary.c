@@ -22,6 +22,7 @@
 
 #include "ua_types_encoding_binary.h"
 #include "ua_util_internal.h"
+#include <signal.h>
 
 /**
  * Type Encoding and Decoding
@@ -229,14 +230,19 @@ DECODE_BINARY(UInt16) {
 
 /* UInt32 */
 ENCODE_BINARY(UInt32) {
-    IF_CHECK_BUFSIZE(ctx->pos + sizeof(u32) <= ctx->end) {
+	// if( ctx->pos==NULL )
+	// 	raise( 5/*SIGTRAP*/ );
+    IF_CHECK_BUFSIZE(((int64_t)ctx->pos) + (int64_t)sizeof(u32) <= (int64_t)ctx->end) {
 #if UA_BINARY_OVERLAYABLE_INTEGER
         memcpy(ctx->pos, src, sizeof(u32));
 #else
         UA_encode32(*src, ctx->pos);
 #endif
     }
-    ctx->pos += 4;
+		if( ctx->pos==NULL )
+			ctx->pos = (u8*)4;
+		else
+    	ctx->pos += 4;
     return UA_STATUSCODE_GOOD;
 }
 

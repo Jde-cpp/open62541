@@ -371,7 +371,7 @@ processACKResponse(UA_Client *client, const UA_ByteString *chunk) {
         UA_decodeBinaryInternal(chunk, &offset, &ackMessage,
                                 &UA_TRANSPORT[UA_TRANSPORT_TCPACKNOWLEDGEMESSAGE], NULL);
     if(client->connectStatus != UA_STATUSCODE_GOOD) {
-        UA_LOG_INFO0(&client->config.logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_NETWORK,
                      "Decoding ACK message failed");
         closeSecureChannel(client);
         return;
@@ -973,12 +973,12 @@ responseGetEndpoints(UA_Client *client, void *userdata,
     }
 
     if(!endpointFound) {
-        UA_LOG_ERROR0(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+        UA_LOG_ERROR(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                      "No suitable endpoint found");
         client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
         closeSecureChannel(client);
     } else if(!tokenFound) {
-        UA_LOG_ERROR0(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+        UA_LOG_ERROR(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                      "No suitable UserTokenPolicy found for the possible endpoints");
         client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
         closeSecureChannel(client);
@@ -1424,7 +1424,7 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
     UA_Client *client = (UA_Client*)application;
     UA_LOCK(&client->clientMutex);
 
-    UA_LOG_TRACE0(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+    UA_LOG_TRACE(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                  "Client network callback");
 
     /* A new connection is not yet registered */

@@ -23,7 +23,7 @@ find_package(Git)
 include(AssignSourceGroup)
 include(GNUInstallDirs)
 include(macros_public)
-
+message(CXX_FLAGS=${CMAKE_CXX_FLAGS})
 #############################
 # Compiled binaries folders #
 #############################
@@ -563,11 +563,12 @@ function(check_add_cc_flag CC_FLAG)
 endfunction()
 
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
-    check_add_cc_flag("-std=c99")   # C99 mode
+    check_add_cc_flag("-std=c17")   # C99 mode
     check_add_cc_flag("-pipe")      # Avoid writing temporary files (for compiler speed)
     check_add_cc_flag("-Wall")      # Warnings
     check_add_cc_flag("-Wextra")    # More warnings
     check_add_cc_flag("-Wpedantic") # Standard compliance
+		check_add_cc_flag("-Wno-gnu-zero-variadic-macro-arguments") # Standard compliance
     if(UA_FORCE_WERROR)
         check_add_cc_flag("-Werror") # All warnings are errors
         check_add_cc_flag("-Wunused-command-line-argument") # Warning for command line args instead of error
@@ -723,7 +724,7 @@ if(MSVC)
     endforeach()
   endif()
 endif()
-
+message(CXX_FLAGS=${CMAKE_CXX_FLAGS})
 if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ)
     set(UA_ENABLE_MALLOC_SINGLETON ON)
 endif()
@@ -744,14 +745,14 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
 if(UA_ENABLE_DISCOVERY_MULTICAST)
   include(GenerateExportHeader)
     set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported" FORCE)
-    
+
     # create a "fake" empty library to generate the export header macros
     if (APPLE)
     	add_library(libmdnsd INTERFACE ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
     else()
     	add_library(libmdnsd ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
     endif()
-    
+
     set_property(TARGET libmdnsd PROPERTY LINKER_LANGUAGE C)
     set_property(TARGET libmdnsd PROPERTY DEFINE_SYMBOL "MDNSD_DYNAMIC_LINKING_EXPORT")
     configure_file("deps/mdnsd/libmdnsd/mdnsd_config_extra.in"
@@ -1208,7 +1209,7 @@ if(UA_ENABLE_AMALGAMATION)
                        PRE_BUILD
                        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/amalgamate.py
                                ${OPEN62541_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/open62541.h
-                               ${exported_headers} ${plugin_headers} 
+                               ${exported_headers} ${plugin_headers}
                        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/amalgamate.py
                                ${exported_headers} ${plugin_headers})
 

@@ -359,11 +359,11 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     char serverUrlBuffer[2][512];
 
     if(portNumber == 0) {
-        UA_LOG_WARNING0(&conf->logger, UA_LOGCATEGORY_USERLAND,
+        UA_LOG_WARNING(&conf->logger, UA_LOGCATEGORY_USERLAND,
                        "Cannot set the ServerUrl with a zero port");
     } else {
         if(conf->serverUrlsSize > 0) {
-            UA_LOG_WARNING0(&conf->logger, UA_LOGCATEGORY_USERLAND,
+            UA_LOG_WARNING(&conf->logger, UA_LOGCATEGORY_USERLAND,
                            "ServerUrls already set. Overriding.");
             UA_Array_delete(conf->serverUrls, conf->serverUrlsSize,
                             &UA_TYPES[UA_TYPES_STRING]);

@@ -1079,7 +1079,7 @@ compatibleValue(UA_Server *server, UA_Session *session, const UA_NodeId *targetD
        value->arrayLength == 0) {
         /* There is no way to check type compatibility here. Leave it for the upper layers to
          * decide, if empty array is okay. */
-        return true;        
+        return true;
     }
 
     /* Is the datatype compatible? */
@@ -1215,7 +1215,7 @@ writeArrayDimensionsAttribute(UA_Server *server, UA_Session *session,
      * when we do the change */
     if(node->head.nodeClass == UA_NODECLASS_VARIABLETYPE &&
        UA_Node_hasSubTypeOrInstances(&node->head)) {
-        UA_LOG_INFO0(&server->config.logger, UA_LOGCATEGORY_SERVER,
+        UA_LOG_INFO(&server->config.logger, UA_LOGCATEGORY_SERVER,
                     "Cannot change a variable type with existing instances");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -2146,7 +2146,7 @@ UA_Server_writeObjectProperty_scalar(UA_Server *server, const UA_NodeId objectId
                                      const UA_QualifiedName propertyName,
                                      const void *value, const UA_DataType *type) {
     UA_LOCK(&server->serviceMutex);
-    UA_StatusCode retval = 
+    UA_StatusCode retval =
         writeObjectProperty_scalar(server, objectId, propertyName, value, type);
     UA_UNLOCK(&server->serviceMutex);
     return retval;
