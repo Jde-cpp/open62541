@@ -1076,7 +1076,11 @@ processDataChangeNotification(UA_Client *client, UA_Client_Subscription *sub,
         }
 
         if(mon->isEventMonitoredItem) {
+<<<<<<< HEAD
             UA_LOG_WARNING(client->config.logging, UA_LOGCATEGORY_CLIENT,
+=======
+            UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+>>>>>>> a37511560 (c++20)
                            "MonitoredItem is configured for Events. But received a "
                            "DataChangeNotification.");
             continue;
@@ -1169,14 +1173,22 @@ processNotificationMessage(UA_Client *client, UA_Client_Subscription *sub,
                                       (UA_StatusChangeNotification*)msg->content.decoded.data);
             UA_LOCK(&client->clientMutex);
         } else {
+<<<<<<< HEAD
             UA_LOG_WARNING(client->config.logging, UA_LOGCATEGORY_CLIENT,
+=======
+            UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+>>>>>>> a37511560 (c++20)
                            "Dropped a StatusChangeNotification since no "
                            "callback is registered");
         }
         return;
     }
 
+<<<<<<< HEAD
     UA_LOG_WARNING(client->config.logging, UA_LOGCATEGORY_CLIENT,
+=======
+    UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+>>>>>>> a37511560 (c++20)
                    "Unknown notification message type");
 }
 

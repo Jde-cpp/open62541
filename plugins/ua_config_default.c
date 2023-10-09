@@ -387,11 +387,19 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     char serverUrlBuffer[1][512];
 
     if(portNumber == 0) {
+<<<<<<< HEAD
         UA_LOG_WARNING(conf->logging, UA_LOGCATEGORY_USERLAND,
                        "Cannot set the ServerUrl with a zero port");
     } else {
         if(conf->serverUrlsSize > 0) {
             UA_LOG_WARNING(conf->logging, UA_LOGCATEGORY_USERLAND,
+=======
+        UA_LOG_WARNING(&conf->logger, UA_LOGCATEGORY_USERLAND,
+                       "Cannot set the ServerUrl with a zero port");
+    } else {
+        if(conf->serverUrlsSize > 0) {
+            UA_LOG_WARNING(&conf->logger, UA_LOGCATEGORY_USERLAND,
+>>>>>>> a37511560 (c++20)
                            "ServerUrls already set. Overriding.");
             UA_Array_delete(conf->serverUrls, conf->serverUrlsSize,
                             &UA_TYPES[UA_TYPES_STRING]);

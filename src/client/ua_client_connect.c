@@ -432,7 +432,11 @@ processACKResponse(UA_Client *client, const UA_ByteString *chunk) {
         UA_decodeBinaryInternal(chunk, &offset, &ackMessage,
                                 &UA_TRANSPORT[UA_TRANSPORT_TCPACKNOWLEDGEMESSAGE], NULL);
     if(client->connectStatus != UA_STATUSCODE_GOOD) {
+<<<<<<< HEAD
         UA_LOG_INFO(client->config.logging, UA_LOGCATEGORY_NETWORK,
+=======
+        UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_NETWORK,
+>>>>>>> a37511560 (c++20)
                      "Decoding ACK message failed");
         closeSecureChannel(client);
         return;
@@ -1024,6 +1028,7 @@ responseGetEndpoints(UA_Client *client, void *userdata,
         }
     }
 
+<<<<<<< HEAD
     if(bestEndpointIndex == notFound) {
         UA_LOG_ERROR(client->config.logging, UA_LOGCATEGORY_CLIENT,
                      "No suitable endpoint found");
@@ -1033,6 +1038,15 @@ responseGetEndpoints(UA_Client *client, void *userdata,
         return;
     } else if(bestTokenIndex == notFound) {
         UA_LOG_ERROR(client->config.logging, UA_LOGCATEGORY_CLIENT,
+=======
+    if(!endpointFound) {
+        UA_LOG_ERROR(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+                     "No suitable endpoint found");
+        client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
+        closeSecureChannel(client);
+    } else if(!tokenFound) {
+        UA_LOG_ERROR(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+>>>>>>> a37511560 (c++20)
                      "No suitable UserTokenPolicy found for the possible endpoints");
         client->connectStatus = UA_STATUSCODE_BADIDENTITYTOKENINVALID;
         closeSecureChannel(client);
@@ -1535,7 +1549,12 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
     UA_Client *client = (UA_Client*)application;
     UA_LOCK(&client->clientMutex);
 
+<<<<<<< HEAD
     UA_LOG_TRACE(client->config.logging, UA_LOGCATEGORY_CLIENT, "Client network callback");
+=======
+    UA_LOG_TRACE(&client->config.logger, UA_LOGCATEGORY_CLIENT,
+                 "Client network callback");
+>>>>>>> a37511560 (c++20)
 
     /* A new connection with no context pointer attached */
     if(!*connectionContext) {

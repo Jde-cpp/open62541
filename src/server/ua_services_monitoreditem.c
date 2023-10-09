@@ -296,6 +296,7 @@ checkAdjustMonitoredItemParams(UA_Server *server, UA_Session *session,
             UA_NODESTORE_RELEASE(server, node);
         }
     }
+<<<<<<< HEAD
         
 
     /* A negative number indicates that the sampling interval is the publishing
@@ -307,6 +308,18 @@ checkAdjustMonitoredItemParams(UA_Server *server, UA_Session *session,
 
     /* Adjust non-null sampling interval to lie within the configured limits */
     if(params->samplingInterval != 0.0) {
+=======
+
+    if(params->samplingInterval < 0.0) {
+        /* A negative number indicates that the sampling interval is the publishing
+         * interval of the Subscription. */
+        if(!mon->subscription) {
+            /* Not possible for local MonitoredItems */
+            params->samplingInterval = server->config.samplingIntervalLimits.min;
+        }
+    } else {
+        /* Adjust positive sampling interval to lie within the limits */
+>>>>>>> a37511560 (c++20)
         UA_BOUNDEDVALUE_SETWBOUNDS(server->config.samplingIntervalLimits,
                                    params->samplingInterval, params->samplingInterval);
         /* Check for NaN */
@@ -414,6 +427,18 @@ Operation_CreateMonitoredItem(UA_Server *server, UA_Session *session,
     /* Adding an Event MonitoredItem */
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
     if(request->itemToMonitor.attributeId == UA_ATTRIBUTEID_EVENTNOTIFIER) {
+<<<<<<< HEAD
+=======
+        /* TODO: Only remote clients can add Event-MonitoredItems at the moment */
+        if(!cmc->sub) {
+            UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_SERVER,
+                           "Only remote clients can add Event-MonitoredItems");
+            result->statusCode = UA_STATUSCODE_BADNOTSUPPORTED;
+            UA_DataValue_clear(&v);
+            return;
+        }
+
+>>>>>>> a37511560 (c++20)
         /* If the 'SubscribeToEvents' bit of EventNotifier attribute is
          * zero, then the object cannot be subscribed to monitor events */
         if(!v.hasValue || !v.value.data) {

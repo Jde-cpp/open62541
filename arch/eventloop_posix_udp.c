@@ -112,7 +112,7 @@ getHostAndPortFromParams(size_t paramsSize, const UA_KeyValuePair *params,
         return 0;
     }
     if(host->length >= UA_MAXHOSTNAME_LENGTH) {
-        UA_LOG_ERROR0(logger, UA_LOGCATEGORY_EVENTLOOP,
+        UA_LOG_ERROR(logger, UA_LOGCATEGORY_EVENTLOOP,
                      "UDP\t| Open UDP Connection: Hostname too long, aborting");
         return -1;
     }
@@ -357,6 +357,7 @@ setupSendMulticastIPv4(UA_FD socket, struct sockaddr_in *addr, size_t paramsSize
                        const UA_Logger *logger) {
     struct in_addr address = addr->sin_addr;
 
+<<<<<<< HEAD
     IpMulticastRequest ipMulticastRequest;
     ipMulticastRequest.ipv4.imr_multiaddr = address;
     /* default outgoing interface ANY */
@@ -368,6 +369,26 @@ setupSendMulticastIPv4(UA_FD socket, struct sockaddr_in *addr, size_t paramsSize
         UA_LOG_ERROR0(logger, UA_LOGCATEGORY_NETWORK,
                      "UDP\t| Opening a connection failed");
         return UA_STATUSCODE_BADINTERNALERROR;
+=======
+    /* Use a defined interface */
+    const UA_String *netif = (const UA_String*)
+        UA_KeyValueMap_getScalar(params, UDPConfigParameters[UDP_PARAMINDEX_INTERFACE].name,
+                                 &UA_TYPES[UA_TYPES_STRING]);
+    if(netif) {
+        UA_STACKARRAY(char, interfaceAsChar, sizeof(char) * netif->length + 1);
+        memcpy(interfaceAsChar, netif->data, netif->length);
+        interfaceAsChar[netif->length] = 0;
+        if(UA_inet_pton(AF_INET, interfaceAsChar, &ipMulticastRequest.ipv4.imr_interface) <= 0) {
+            UA_LOG_ERROR(logger, UA_LOGCATEGORY_SERVER,
+                         "UDP\t| Interface configuration preparation failed.");
+            return UA_STATUSCODE_BADINTERNALERROR;
+        }
+    } else {
+        UA_LOG_WARNING(logger, UA_LOGCATEGORY_NETWORK,
+                       "UDP %u\t| No network interface defined for multicast. "
+                       "That means the first suitable network interface is used.",
+                       (unsigned)socket);
+>>>>>>> a37511560 (c++20)
     }
 
     if(netif.length > 0) {
@@ -460,9 +481,14 @@ setupListenMulticastIPv6(UA_FD socket, size_t paramsSize, const UA_KeyValuePair 
 
         ipMulticastRequest.ipv6.ipv6mr_interface = UA_if_nametoindex(interfaceAsChar);
         if(ipMulticastRequest.ipv6.ipv6mr_interface == 0) {
+<<<<<<< HEAD
             UA_LOG_ERROR0(logger, UA_LOGCATEGORY_SERVER,
                          "PubSub Connection creation problem. "
                          "Interface configuration preparation failed.");
+=======
+            UA_LOG_ERROR(logger, UA_LOGCATEGORY_SERVER,
+                         "UDP\t| Interface configuration preparation failed.");
+>>>>>>> a37511560 (c++20)
             return UA_STATUSCODE_BADINTERNALERROR;
         }
     }
@@ -503,9 +529,14 @@ setupSendMulticastIPv6(UA_FD socket, struct sockaddr_in6 *addr, size_t paramsSiz
 
         ipMulticastRequest.ipv6.ipv6mr_interface = UA_if_nametoindex(interfaceAsChar);
         if(ipMulticastRequest.ipv6.ipv6mr_interface == 0) {
+<<<<<<< HEAD
             UA_LOG_ERROR0(logger, UA_LOGCATEGORY_SERVER,
                          "PubSub Connection creation problem. "
                          "Interface configuration preparation failed.");
+=======
+            UA_LOG_ERROR(logger, UA_LOGCATEGORY_SERVER,
+                         "UDP\t| Interface configuration preparation failed.");
+>>>>>>> a37511560 (c++20)
             return UA_STATUSCODE_BADINTERNALERROR;
         }
     }
@@ -714,8 +745,12 @@ checkForListenMulticastAndConfigure(struct addrinfo *info, size_t paramsSize, co
         }
 #endif
     } else {
+<<<<<<< HEAD
         UA_LOG_ERROR0(logger, UA_LOGCATEGORY_NETWORK,
                      "UDP\t| Opening a connection failed");
+=======
+        UA_LOG_ERROR(logger, UA_LOGCATEGORY_NETWORK, "UDP\t| Unknown connection type");
+>>>>>>> a37511560 (c++20)
         res = UA_STATUSCODE_BADCONNECTIONREJECTED;
     }
     return res;
@@ -1040,7 +1075,7 @@ checkForSendMulticastAndConfigure(size_t paramsSize, const UA_KeyValuePair *para
         }
 #endif
     } else {
-        UA_LOG_ERROR0(logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_ERROR(logger, UA_LOGCATEGORY_NETWORK,
                      "UDP\t| Opening a connection failed");
         res = UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -1070,7 +1105,7 @@ registerSocketAndDestinationForSend(size_t paramsSize, const UA_KeyValuePair *pa
     res = checkForSendMulticastAndConfigure(paramsSize, params, info, newSock, logger);
     if(res != UA_STATUSCODE_GOOD) {
         UA_close(newSock);
-        UA_LOG_ERROR0(logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_ERROR(logger, UA_LOGCATEGORY_NETWORK,
                      "UDP\t| Configuring send multicast failed");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -1107,7 +1142,7 @@ UDP_openSendConnection(UA_ConnectionManager *cm,
         if(info != NULL) {
             UA_freeaddrinfo(info);
         }
-        UA_LOG_ERROR0(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_ERROR(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
                      "UDP\t| Opening a connection failed");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -1254,7 +1289,7 @@ UDP_eventSourceStart(UA_ConnectionManager *cm) {
 
     /* Check the state */
     if(cm->eventSource.state != UA_EVENTSOURCESTATE_STOPPED) {
-        UA_LOG_ERROR0(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_ERROR(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
                      "To start the UDP ConnectionManager, "
                      "it has to be registered in an EventLoop and not started");
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -1303,7 +1338,7 @@ UDP_eventSourceStop(UA_ConnectionManager *cm) {
 static UA_StatusCode
 UDP_eventSourceDelete(UA_ConnectionManager *cm) {
     if(cm->eventSource.state >= UA_EVENTSOURCESTATE_STARTING) {
-        UA_LOG_ERROR0(cm->eventSource.eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
+        UA_LOG_ERROR(cm->eventSource.eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
                      "UDP\t| The EventSource must be stopped before it can be deleted");
         return UA_STATUSCODE_BADINTERNALERROR;
     }

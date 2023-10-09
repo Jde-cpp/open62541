@@ -296,7 +296,11 @@ UA_AccessControl_default(UA_ServerConfig *config,
                          const UA_ByteString *userTokenPolicyUri,
                          size_t usernamePasswordLoginSize,
                          const UA_UsernamePasswordLogin *usernamePasswordLogin) {
+<<<<<<< HEAD
     UA_LOG_WARNING(config->logging, UA_LOGCATEGORY_SERVER,
+=======
+    UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_SERVER,
+>>>>>>> a37511560 (c++20)
                    "AccessControl: Unconfigured AccessControl. Users have all permissions.");
     UA_AccessControl *ac = &config->accessControl;
 
@@ -336,7 +340,11 @@ UA_AccessControl_default(UA_ServerConfig *config,
     /* Allow anonymous? */
     context->allowAnonymous = allowAnonymous;
     if(allowAnonymous) {
+<<<<<<< HEAD
         UA_LOG_INFO(config->logging, UA_LOGCATEGORY_SERVER,
+=======
+        UA_LOG_INFO(&config->logger, UA_LOGCATEGORY_SERVER,
+>>>>>>> a37511560 (c++20)
                     "AccessControl: Anonymous login is enabled");
     }
 
@@ -389,6 +397,7 @@ UA_AccessControl_default(UA_ServerConfig *config,
 
     const UA_ByteString *utpUri = NULL;
     policies = 0;
+<<<<<<< HEAD
     for(size_t i = 0; i < numOfPolcies; i++) {
         if(userTokenPolicyUri) {
             utpUri = userTokenPolicyUri;
@@ -401,6 +410,39 @@ UA_AccessControl_default(UA_ServerConfig *config,
             UA_ByteString_copy(utpUri,
                                &ac->userTokenPolicies[policies].securityPolicyUri);
             policies++;
+=======
+    if(allowAnonymous) {
+        ac->userTokenPolicies[policies].tokenType = UA_USERTOKENTYPE_ANONYMOUS;
+        ac->userTokenPolicies[policies].policyId = UA_STRING_ALLOC(ANONYMOUS_POLICY);
+        policies++;
+    }
+
+    if(config->sessionPKI.verifyCertificate) {
+        ac->userTokenPolicies[policies].tokenType = UA_USERTOKENTYPE_CERTIFICATE;
+        ac->userTokenPolicies[policies].policyId = UA_STRING_ALLOC(CERTIFICATE_POLICY);
+#if UA_LOGLEVEL <= 400
+        if(UA_ByteString_equal(userTokenPolicyUri, &UA_SECURITY_POLICY_NONE_URI)) {
+            UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_SERVER,
+                           "x509 Certificate Authentication configured, "
+                           "but no encrypting SecurityPolicy. "
+                           "This can leak credentials on the network.");
+        }
+#endif
+        UA_ByteString_copy(userTokenPolicyUri,
+                           &ac->userTokenPolicies[policies].securityPolicyUri);
+        policies++;
+    }
+
+    if(usernamePasswordLoginSize > 0) {
+        ac->userTokenPolicies[policies].tokenType = UA_USERTOKENTYPE_USERNAME;
+        ac->userTokenPolicies[policies].policyId = UA_STRING_ALLOC(USERNAME_POLICY);
+#if UA_LOGLEVEL <= 400
+        if(UA_ByteString_equal(userTokenPolicyUri, &UA_SECURITY_POLICY_NONE_URI)) {
+            UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_SERVER,
+                           "Username/Password Authentication configured, "
+                           "but no encrypting SecurityPolicy. "
+                           "This can leak credentials on the network.");
+>>>>>>> a37511560 (c++20)
         }
 
         if(config->sessionPKI.verifyCertificate) {

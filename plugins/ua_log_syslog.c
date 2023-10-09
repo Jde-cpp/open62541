@@ -11,6 +11,7 @@
 
 #include <syslog.h>
 #include <stdio.h>
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
 
 const char *syslogLevelNames[6] = {"trace", "debug", "info",
                                    "warn", "error", "fatal"};
@@ -23,6 +24,7 @@ __attribute__((__format__(__printf__, 4 , 0)))
 #endif
 static void
 UA_Log_Syslog_log(void *context, UA_LogLevel level, UA_LogCategory category,
+									const char* file, const char* function, uint_least32_t line,
                   const char *msg, va_list args) {
     /* Assume that context is casted to UA_LogLevel */
     if(context != NULL && (UA_LogLevel)(uintptr_t)context > level)

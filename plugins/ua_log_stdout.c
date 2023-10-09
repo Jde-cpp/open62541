@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+
 /* ANSI escape sequences for color output taken from here:
  * https://stackoverflow.com/questions/3219393/stdlib-and-colored-output-in-c*/
 
@@ -62,12 +64,13 @@ static UA_INLINE void spinUnLock(void) {
 __attribute__((__format__(__printf__, 4 , 0)))
 #endif
 #ifdef UA_SOURCE_LOCATION
-void UA_Log_Stdout_log(void *context, UA_LogLevel level, UA_LogCategory category, const char* file, const char* function, uint_least32_t line, const char *msg, va_list args)
+static void UA_Log_Stdout_log(void *context, UA_LogLevel level, UA_LogCategory category, const char* file, const char* function, uint_least32_t line, const char *msg, va_list args)
 {
 #else
 static void
 UA_Log_Stdout_log(void *context, UA_LogLevel level, UA_LogCategory category,
                   const char *msg, va_list args) {
+#endif
     /* MinLevel encoded in the context pointer */
     UA_LogLevel minLevel = (UA_LogLevel)(uintptr_t)context;
     if(minLevel > level)
