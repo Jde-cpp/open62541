@@ -805,7 +805,7 @@ __UA_Client_AsyncService(UA_Client *client, const void *request,
                          UA_ClientAsyncServiceCallback callback,
                          const UA_DataType *responseType,
                          void *userdata, UA_UInt32 *requestId) {
-    UA_LOCK(&client->clientMutex);  UA_LOG_DEBUG( &client->config.logger, UA_LOGCATEGORY_NETWORK, "(%zx)lock", (size_t)&client->clientMutex );
+    UA_LOCK(&client->clientMutex);  UA_LOG_DEBUG( client->config.logging, UA_LOGCATEGORY_NETWORK, "(%zx)lock", (size_t)&client->clientMutex );
     UA_StatusCode res =
         __Client_AsyncService(client, request, requestType, callback, responseType,
                               userdata, requestId);
