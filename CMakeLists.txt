@@ -16,7 +16,7 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
     set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/tools/cmake3.12")
 endif()
 
-find_package(Python3 REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(PYTHON_EXECUTABLE ${Python3_EXECUTABLE})
 
 find_package(Git)
@@ -40,9 +40,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # number from the latest release plus the "-undefined" label. Will be
 # overwritten with more detailed information if git is available.
 set(OPEN62541_VER_MAJOR 1)
-set(OPEN62541_VER_MINOR 3)
-set(OPEN62541_VER_PATCH 6)
-set(OPEN62541_VER_LABEL "-undefined") # like "-rc1" or "-g4538abcd" or "-g4538abcd-dirty"
+set(OPEN62541_VER_MINOR 4)
+set(OPEN62541_VER_PATCH 0)
+set(OPEN62541_VER_LABEL "-rc1") # like "-rc1" or "-g4538abcd" or "-g4538abcd-dirty"
 set(OPEN62541_VER_COMMIT "unknown-commit")
 
 # Overwrite the version information based on git if available
@@ -75,12 +75,14 @@ if("${UA_ARCHITECTURE}" STREQUAL "")
     endif(UNIX)
 endif()
 
-message(STATUS "The selected architecture is: ${UA_ARCHITECTURE}")
+if (NOT UA_ENABLE_AMALGAMATION OR (UA_ENABLE_AMALGAMATION AND NOT UA_AMALGAMATION_MULTIARCH))
+    message(STATUS "The selected architecture is: ${UA_ARCHITECTURE}")
 
-if("${UA_ARCHITECTURE}" STREQUAL "posix")
-    set(UA_ARCHITECTURE_POSIX 1)
-elseif("${UA_ARCHITECTURE}" STREQUAL "win32")
-    set(UA_ARCHITECTURE_WIN32 1)
+    if("${UA_ARCHITECTURE}" STREQUAL "posix")
+        set(UA_ARCHITECTURE_POSIX 1)
+    elseif("${UA_ARCHITECTURE}" STREQUAL "win32")
+        set(UA_ARCHITECTURE_WIN32 1)
+    endif()
 endif()
 
 #################
@@ -94,6 +96,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(UA_ENABLE_AMALGAMATION "Concatenate the library to a single file open62541.h/.c" OFF)
+option(UA_AMALGAMATION_MULTIARCH "Create an architecture-independent amalgamation if UA_ENABLE_AMALGAMATION is ON" OFF)
 option(BUILD_SHARED_LIBS "Enable building of shared libraries (dll/so)" OFF)
 set(UA_LOGLEVEL 300 CACHE STRING "Minimal level at which logs shall be reported (100=TRACE, 200=DEBUG, 300=INFO, 400=WARNING, 500=ERROR, 600=FATAL)")
 option(UA_ENABLE_DIAGNOSTICS "Enable diagnostics information exposed by the server" ON)
@@ -101,8 +104,8 @@ option(UA_ENABLE_METHODCALLS "Enable the Method service set" ON)
 option(UA_ENABLE_SUBSCRIPTIONS "Enable subscriptions support" ON)
 option(UA_ENABLE_SUBSCRIPTIONS_EVENTS "Enable event monitoring" ON)
 option(UA_ENABLE_DA "Enable OPC UA DataAccess (Part 8) definitions" ON)
-option(UA_ENABLE_HISTORIZING "Enable basic support for historical access (client and server)" OFF)
-option(UA_ENABLE_DISCOVERY "Enable Discovery Service (LDS)" OFF)
+option(UA_ENABLE_HISTORIZING "Enable basic support for historical access (client and server)" ON)
+option(UA_ENABLE_DISCOVERY "Enable Discovery Service (LDS)" ON)
 option(UA_ENABLE_JSON_ENCODING "Enable JSON encoding" ON)
 option(UA_ENABLE_XML_ENCODING "Enable XML encoding (EXPERIMENTAL)" OFF)
 option(UA_ENABLE_NODESETLOADER "Enable nodesetLoader public API" OFF)
@@ -298,16 +301,12 @@ option(UA_FORCE_32BIT "Force compilation as 32-bit executable" OFF)
 mark_as_advanced(UA_FORCE_32BIT)
 
 option(UA_FORCE_WERROR "Force compilation with -Werror (or /WX on MSVC)" OFF)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(UA_FORCE_WERROR ON)
-endif()
 
 option(UA_ENABLE_DEBUG_SANITIZER "Use sanitizer in debug mode" ON)
 mark_as_advanced(UA_ENABLE_DEBUG_SANITIZER)
 
 #General PubSub setup
 option(UA_ENABLE_PUBSUB "Enable the PubSub protocol" OFF)
-option(UA_ENABLE_PUBSUB_DELTAFRAMES "Enable sending of delta frames with only the changes" OFF)
 
 option(UA_ENABLE_PUBSUB_ENCRYPTION "Enable encryption of the PubSub payload" OFF)
 mark_as_advanced(UA_ENABLE_PUBSUB_ENCRYPTION)
@@ -328,13 +327,6 @@ if(UA_ENABLE_PUBSUB_INFORMATIONMODEL)
     endif()
     if(UA_NAMESPACE_ZERO STREQUAL "MINIMAL")
         message(FATAL_ERROR "PubSub information model representation cannot be used with MINIMAL namespace zero.")
-    endif()
-endif()
-
-option(UA_ENABLE_PUBSUB_INFORMATIONMODEL_METHODS "Enable PubSub informationmodel methods" OFF)
-if(UA_ENABLE_PUBSUB_INFORMATIONMODEL_METHODS)
-    if(NOT UA_ENABLE_PUBSUB_INFORMATIONMODEL)
-        message(FATAL_ERROR "PubSub information model methods cannot be used with disabled PubSub information model.")
     endif()
 endif()
 
@@ -491,6 +483,10 @@ if(UA_ENABLE_SUBSCRIPTIONS_EVENTS AND (NOT UA_ENABLE_SUBSCRIPTIONS))
     set(UA_ENABLE_SUBSCRIPTIONS_EVENTS OFF)
 endif()
 
+if(UA_ENABLE_HISTORIZING AND (NOT UA_ENABLE_SUBSCRIPTIONS))
+    MESSAGE(FATAL_ERROR "UA_ENABLE_HISTORIZING needs Subscriptions enabled")
+endif()
+
 ######################
 # External Libraries #
 ######################
@@ -521,8 +517,8 @@ if(UA_ENABLE_ENCRYPTION_LIBRESSL)
     find_package(LibreSSL REQUIRED)
     list(APPEND open62541_LIBRARIES ${LIBRESSL_LIBRARIES})
     if(WIN32)
-        # Add bestcrypt for random generator
-        list(APPEND open62541_LIBRARIES bcrypt)
+        # Add bestcrypt for random generator and ws2_32 for crypto
+        list(APPEND open62541_LIBRARIES ws2_32 bcrypt)
     endif()
 endif()
 
@@ -616,7 +612,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
         if(MSVC)
             message(FATAL_ERROR "Select the 32bit (cross-) compiler instead of forcing compiler options")
         endif()
-        check_add_cc_flag("-m32") # GCC and Clang, possibly more
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32") # GCC and Clang, possibly more
     endif()
 
     if(NOT MINGW AND NOT UA_BUILD_OSS_FUZZ)
@@ -740,6 +736,9 @@ file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/src_generated")
 configure_file(include/open62541/config.h.in ${PROJECT_BINARY_DIR}/src_generated/open62541/config.h)
 
 # Generate a .pc file for pkg-config
+if(UA_ENABLE_AMALGAMATION)
+    set(PC_EXTRA_CFLAGS "-DUA_ENABLE_AMALGAMATION")
+endif()
 configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open62541.pc @ONLY)
 
 if(UA_ENABLE_DISCOVERY_MULTICAST)
@@ -779,13 +778,14 @@ set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/open62541/config.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/nodestore.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/historydatabase.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/server_pubsub.h
-                     ${PROJECT_SOURCE_DIR}/include/open62541/server.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client.h
+                     ${PROJECT_SOURCE_DIR}/include/open62541/server.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_highlevel.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_subscriptions.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_highlevel_async.h)
 
 # Main Library
+
 set(lib_headers ${PROJECT_SOURCE_DIR}/deps/open62541_queue.h
                 ${PROJECT_SOURCE_DIR}/deps/pcg_basic.h
                 ${PROJECT_SOURCE_DIR}/deps/libc_time.h
@@ -795,7 +795,7 @@ set(lib_headers ${PROJECT_SOURCE_DIR}/deps/open62541_queue.h
                 ${PROJECT_SOURCE_DIR}/deps/itoa.h
                 ${PROJECT_SOURCE_DIR}/deps/ziptree.h
                 ${PROJECT_SOURCE_DIR}/src/ua_types_encoding_binary.h
-                ${PROJECT_SOURCE_DIR}/src/ua_util_internal.h
+                ${PROJECT_SOURCE_DIR}/src/util/ua_util_internal.h
                 ${PROJECT_BINARY_DIR}/src_generated/open62541/transport_generated.h
                 ${PROJECT_BINARY_DIR}/src_generated/open62541/transport_generated_handling.h
                 ${PROJECT_SOURCE_DIR}/src/ua_securechannel.h
@@ -815,7 +815,8 @@ set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
                 ${PROJECT_BINARY_DIR}/src_generated/open62541/types_generated.c
                 ${PROJECT_BINARY_DIR}/src_generated/open62541/transport_generated.c
                 ${PROJECT_BINARY_DIR}/src_generated/open62541/statuscodes.c
-                ${PROJECT_SOURCE_DIR}/src/ua_util.c
+                ${PROJECT_SOURCE_DIR}/src/util/ua_util.c
+                ${PROJECT_SOURCE_DIR}/src/util/ua_clock.c
                 ${PROJECT_SOURCE_DIR}/src/ua_securechannel.c
                 ${PROJECT_SOURCE_DIR}/src/ua_securechannel_crypto.c
                 # server
@@ -827,7 +828,6 @@ set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server_config.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server_binary.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server_utils.c
-                ${PROJECT_SOURCE_DIR}/src/server/ua_server_discovery.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server_async.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_view.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_method.c
@@ -838,7 +838,6 @@ set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_monitoreditem.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_securechannel.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_nodemanagement.c
-                ${PROJECT_SOURCE_DIR}/src/server/ua_services_discovery_multicast.c
                 # pubsub
                 ${PROJECT_SOURCE_DIR}/src/pubsub/ua_pubsub_networkmessage.c
                 ${PROJECT_SOURCE_DIR}/src/pubsub/ua_pubsub_eventloop.c
@@ -874,7 +873,7 @@ if(UA_GENERATED_NAMESPACE_ZERO)
 endif()
 
 if(UA_ENABLE_PARSING)
-    list(APPEND lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types_lex.c)
+    list(APPEND lib_sources ${PROJECT_SOURCE_DIR}/src/util/ua_types_lex.c)
 endif()
 
 if(UA_ENABLE_PUBSUB)
@@ -941,7 +940,7 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/sdtxt.h
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
     list(APPEND lib_sources
-         ${PROJECT_SOURCE_DIR}/src/server/ua_server_discovery_mdns.c
+         ${PROJECT_SOURCE_DIR}/src/server/ua_discovery_mdns.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/1035.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/xht.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/sdtxt.c
@@ -950,39 +949,6 @@ endif()
 
 if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ)
     list(APPEND lib_sources ${PROJECT_SOURCE_DIR}/tests/fuzz/custom_memory_manager.c)
-endif()
-
-# Architecture
-set(architecture_headers)
-set(architecture_sources)
-
-if(NOT "${UA_ARCHITECTURE}" STREQUAL "none")
-    list(APPEND architecture_headers
-         ${PROJECT_SOURCE_DIR}/arch/posix/ua_architecture.h
-         ${PROJECT_SOURCE_DIR}/arch/win32/ua_architecture.h
-         ${PROJECT_SOURCE_DIR}/arch/common/ua_timer.h
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_common.h
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix.h)
-
-    list(APPEND architecture_sources
-         ${PROJECT_SOURCE_DIR}/arch/posix/ua_clock.c
-         ${PROJECT_SOURCE_DIR}/arch/win32/ua_clock.c
-         ${PROJECT_SOURCE_DIR}/arch/common/ua_timer.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_common.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_select.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_epoll.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_tcp.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_udp.c
-         ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_interrupt.c)
-
-    if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-        list(APPEND architecture_sources ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_eth.c)
-    endif()
-
-    if(UA_ENABLE_MQTT)
-        list(APPEND architecture_sources ${PROJECT_SOURCE_DIR}/arch/eventloop_mqtt.c)
-    endif()
 endif()
 
 
@@ -1002,6 +968,28 @@ set(plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.c
                    ${PROJECT_SOURCE_DIR}/plugins/ua_config_default.c
                    ${PROJECT_SOURCE_DIR}/plugins/crypto/ua_pki_none.c
                    ${PROJECT_SOURCE_DIR}/plugins/crypto/ua_securitypolicy_none.c)
+
+# Always add the POSIX eventloop. The files internally check for the configured architecture
+list(APPEND plugin_sources
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/eventloop_timer.h
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/eventloop_timer.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/eventloop_common.h
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/eventloop_common.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix.h
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix_select.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix_epoll.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix_tcp.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix_udp.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix_eth.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/posix/eventloop_posix_interrupt.c
+     ${PROJECT_SOURCE_DIR}/plugins/eventloop/eventloop_mqtt.c)
+
+# For file based server configuration
+if(UA_ENABLE_JSON_ENCODING)
+    list(APPEND plugin_headers ${PROJECT_SOURCE_DIR}/plugins/include/open62541/server_config_file_based.h)
+    list(APPEND plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_config_json.c)
+endif()
 
 if(UA_ENABLE_HISTORIZING)
     list(APPEND plugin_headers
@@ -1072,8 +1060,8 @@ list(INSERT plugin_sources 0
 endif()
 
 if(UA_ENABLE_DISCOVERY)
-    list(APPEND lib_headers ${PROJECT_SOURCE_DIR}/src/server/ua_discovery_manager.h)
-    list(APPEND lib_sources ${PROJECT_SOURCE_DIR}/src/server/ua_discovery_manager.c)
+    list(APPEND lib_headers ${PROJECT_SOURCE_DIR}/src/server/ua_discovery.h)
+    list(APPEND lib_sources ${PROJECT_SOURCE_DIR}/src/server/ua_discovery.c)
 endif()
 
 if(UA_ENABLE_NODESETLOADER)
@@ -1217,9 +1205,9 @@ if(UA_ENABLE_AMALGAMATION)
                        PRE_BUILD
                        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/amalgamate.py
                                ${OPEN62541_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/open62541.c
-                               ${lib_headers} ${lib_sources} ${plugin_sources} ${architecture_headers} ${architecture_sources}
+                               ${lib_headers} ${lib_sources} ${plugin_sources}
                        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/amalgamate.py ${lib_headers}
-                               ${lib_sources} ${architecture_sources} ${plugin_sources} ${architecture_headers} ${architecture_sources})
+                               ${lib_sources} ${plugin_sources})
 
     add_custom_target(open62541-amalgamation-source DEPENDS ${PROJECT_BINARY_DIR}/open62541.c)
     add_custom_target(open62541-amalgamation-header DEPENDS ${PROJECT_BINARY_DIR}/open62541.h)
@@ -1256,7 +1244,6 @@ endif()
 
 assign_source_group(${exported_headers})
 assign_source_group(${lib_headers} ${lib_sources})
-assign_source_group(${architecture_headers} ${architecture_sources})
 assign_source_group(${plugin_headers} ${plugin_sources})
 
 if(UA_ENABLE_AMALGAMATION)
@@ -1318,7 +1305,7 @@ else()
                                     PROPERTIES COMPILE_FLAGS "-fno-stack-protector -O0")
     endif()
 
-    add_library(open62541-plugins OBJECT ${plugin_sources} ${architecture_sources} ${exported_headers})
+    add_library(open62541-plugins OBJECT ${plugin_sources} ${exported_headers})
     add_dependencies(open62541-plugins open62541-generator-types open62541-generator-transport open62541-generator-namespace)
     target_include_directories(open62541-plugins PRIVATE ${PROJECT_SOURCE_DIR}/plugins)
     target_include_directories(open62541-plugins PRIVATE ${PROJECT_BINARY_DIR}/src_generated)

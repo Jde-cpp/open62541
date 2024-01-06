@@ -1,4 +1,6 @@
-set(open62541_TOOLS_DIR "${PROJECT_SOURCE_DIR}/tools")
+if(NOT open62541_TOOLS_DIR OR "${open62541_TOOLS_DIR}" STREQUAL "")
+    set(open62541_TOOLS_DIR "${PROJECT_SOURCE_DIR}/tools")
+endif()
 
 # --------------- Generate NodeIDs header ---------------------
 #
@@ -213,6 +215,7 @@ function(ua_generate_datatypes)
         ${UA_GEN_DT_INTERNAL_ARG}
         ${UA_GEN_DT_OUTPUT_DIR}/${UA_GEN_DT_NAME}
         DEPENDS ${open62541_TOOLS_DIR}/generate_datatypes.py
+                ${open62541_TOOLS_DIR}/nodeset_compiler/backend_open62541_typedefinitions.py
         ${UA_GEN_DT_FILES_BSD}
         ${UA_GEN_DT_FILE_CSV}
         ${UA_GEN_DT_FILES_SELECTED})

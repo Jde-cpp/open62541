@@ -291,7 +291,7 @@ run(UA_String *transportProfile, UA_NetworkAddressUrlDataType *networkAddressUrl
         UA_malloc(sizeof(UA_PubSubSecurityPolicy));
     config->pubSubConfig.securityPoliciesSize = 1;
     UA_PubSubSecurityPolicy_Aes128Ctr(config->pubSubConfig.securityPolicies,
-                                      &config->logger);
+                                      config->logging);
 
     /* API calls */
     /* Add PubSubConnection */
@@ -345,12 +345,14 @@ int main(int argc, char **argv) {
                 printf("Error: UADP/ETH needs an interface name\n");
                 return EXIT_FAILURE;
             }
-            networkAddressUrl.networkInterface = UA_STRING(argv[2]);
             networkAddressUrl.url = UA_STRING(argv[1]);
         } else {
             printf("Error: unknown URI\n");
             return EXIT_FAILURE;
         }
+    }
+    if (argc > 2) {
+        networkAddressUrl.networkInterface = UA_STRING(argv[2]);
     }
 
     return run(&transportProfile, &networkAddressUrl);

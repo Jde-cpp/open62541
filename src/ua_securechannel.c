@@ -17,7 +17,6 @@
 
 #include "ua_securechannel.h"
 #include "ua_types_encoding_binary.h"
-#include "ua_util_internal.h"
 #include "server/ua_session.h"
 
 #define UA_BITMASK_MESSAGETYPE 0x00ffffffu
@@ -182,20 +181,32 @@ UA_SecureChannel_clear(UA_SecureChannel *channel) {
         channel->channelContext = NULL;
     }
 
-    /* Delete members */
-    UA_ByteString_clear(&channel->remoteCertificate);
-    UA_ByteString_clear(&channel->localNonce);
-    UA_ByteString_clear(&channel->remoteNonce);
-    UA_ChannelSecurityToken_clear(&channel->securityToken);
-    UA_ChannelSecurityToken_clear(&channel->altSecurityToken);
-    UA_SecureChannel_deleteBuffered(channel);
-
     /* The EventLoop connection is no longer valid */
     channel->connectionId = 0;
     channel->connectionManager = NULL;
 
+    /* Clean up the SecurityToken */
+    UA_ChannelSecurityToken_clear(&channel->securityToken);
+    UA_ChannelSecurityToken_clear(&channel->altSecurityToken);
+
+    /* Clean up certificate and nonces */
+    UA_ByteString_clear(&channel->remoteCertificate);
+    UA_ByteString_clear(&channel->localNonce);
+    UA_ByteString_clear(&channel->remoteNonce);
+
+    /* Delete remaining chunks */
+    UA_SecureChannel_deleteBuffered(channel);
+
+    /* Reset the SecureChannel for reuse (in the client) */
+    channel->securityMode = UA_MESSAGESECURITYMODE_INVALID;
+    channel->shutdownReason = UA_SHUTDOWNREASON_CLOSE;
+    memset(&channel->config, 0, sizeof(UA_ConnectionConfig));
+    channel->receiveSequenceNumber = 0;
+    channel->sendSequenceNumber = 0;
+
     /* Set the state to closed */
     channel->state = UA_SECURECHANNELSTATE_CLOSED;
+    channel->renewState = UA_SECURECHANNELRENEWSTATE_NORMAL;
 }
 
 UA_StatusCode
@@ -644,7 +655,8 @@ error:
 }
 
 static UA_StatusCode
-unpackPayloadMSG(UA_SecureChannel *channel, UA_Chunk *chunk) {
+unpackPayloadMSG(UA_SecureChannel *channel, UA_Chunk *chunk,
+                 UA_DateTime nowMonotonic) {
     UA_CHECK_MEM(channel->securityPolicy, return UA_STATUSCODE_BADINTERNALERROR);
 
     UA_assert(chunk->bytes.length >= UA_SECURECHANNEL_MESSAGE_MIN_LENGTH);
@@ -664,7 +676,7 @@ unpackPayloadMSG(UA_SecureChannel *channel, UA_Chunk *chunk) {
 #endif
 
     /* Check (and revolve) the SecurityToken */
-    res = checkSymHeader(channel, tokenId);
+    res = checkSymHeader(channel, tokenId, nowMonotonic);
     UA_CHECK_STATUS(res, return res);
 
     /* Decrypt the chunk payload */
@@ -784,7 +796,8 @@ persistIncompleteChunk(UA_SecureChannel *channel, const UA_ByteString *buffer,
  * queue will be cleared for the next message. */
 static UA_StatusCode
 processChunks(UA_SecureChannel *channel, void *application,
-              UA_ProcessMessageCallback callback) {
+              UA_ProcessMessageCallback callback,
+              UA_DateTime nowMonotonic) {
     UA_Chunk *chunk;
     UA_StatusCode res = UA_STATUSCODE_GOOD;
     while((chunk = SIMPLEQ_FIRST(&channel->completeChunks))) {
@@ -804,7 +817,7 @@ processChunks(UA_SecureChannel *channel, void *application,
             if(channel->state == UA_SECURECHANNELSTATE_CLOSED)
                 res = UA_STATUSCODE_BADSECURECHANNELCLOSED;
             else
-                res = unpackPayloadMSG(channel, chunk);
+                res = unpackPayloadMSG(channel, chunk, nowMonotonic);
         } else {
             chunk->bytes.data += UA_SECURECHANNEL_MESSAGEHEADER_LENGTH;
             chunk->bytes.length -= UA_SECURECHANNEL_MESSAGEHEADER_LENGTH;
@@ -930,7 +943,8 @@ extractCompleteChunk(UA_SecureChannel *channel, const UA_ByteString *buffer,
 UA_StatusCode
 UA_SecureChannel_processBuffer(UA_SecureChannel *channel, void *application,
                                UA_ProcessMessageCallback callback,
-                               const UA_ByteString *buffer) {
+                               const UA_ByteString *buffer,
+                               UA_DateTime nowMonotonic) {
     /* Prepend the incomplete last chunk. This is usually done in the
      * networklayer. But we test for a buffered incomplete chunk here again to
      * work around "lazy" network layers. */
@@ -964,7 +978,7 @@ UA_SecureChannel_processBuffer(UA_SecureChannel *channel, void *application,
 
     /* Process whatever we can. Chunks of completed and processed messages are
      * removed. */
-    res = processChunks(channel, application, callback);
+    res = processChunks(channel, application, callback, nowMonotonic);
     UA_CHECK_STATUS(res, goto cleanup);
 
     /* Persist full chunks that still point to the buffer. Can only return

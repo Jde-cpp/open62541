@@ -178,6 +178,7 @@ UA_ChannelModule_New_Context(const UA_SecurityPolicy * securityPolicy,
     if(context->remoteCertificateX509 == NULL) {
         UA_ByteString_clear(&context->remoteCertificate);
         UA_free(context);
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     context->policyContext =
@@ -539,6 +540,7 @@ UA_SecurityPolicy_Basic256Sha256(UA_SecurityPolicy *policy,
     policy->logger = logger;
     policy->policyUri =
         UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256\0");
+    policy->securityLevel = 10;
 
     /* Set ChannelModule context  */
     channelModule->newContext = UA_ChannelModule_New_Context;

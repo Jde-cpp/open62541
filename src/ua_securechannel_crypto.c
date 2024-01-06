@@ -15,7 +15,6 @@
 
 #include "ua_securechannel.h"
 #include "ua_types_encoding_binary.h"
-#include "ua_util_internal.h"
 
 UA_StatusCode
 UA_SecureChannel_generateLocalNonce(UA_SecureChannel *channel) {
@@ -495,7 +494,8 @@ checkAsymHeader(UA_SecureChannel *channel,
 }
 
 UA_StatusCode
-checkSymHeader(UA_SecureChannel *channel, const UA_UInt32 tokenId) {
+checkSymHeader(UA_SecureChannel *channel, const UA_UInt32 tokenId,
+               UA_DateTime nowMonotonic) {
     /* If no match, try to revolve to the next token after a
      * RenewSecureChannel */
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
@@ -550,7 +550,7 @@ checkSymHeader(UA_SecureChannel *channel, const UA_UInt32 tokenId) {
 
     UA_DateTime timeout = token->createdAt + (token->revisedLifetime * UA_DATETIME_MSEC);
     if(channel->state == UA_SECURECHANNELSTATE_OPEN &&
-       timeout < UA_DateTime_nowMonotonic()) {
+       timeout < nowMonotonic) {
         UA_LOG_WARNING_CHANNEL(channel->securityPolicy->logger, channel,
                                "SecurityToken timed out");
         UA_SecureChannel_shutdown(channel, UA_SHUTDOWNREASON_TIMEOUT);

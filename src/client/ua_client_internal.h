@@ -20,7 +20,7 @@
 
 #include "open62541_queue.h"
 #include "ua_securechannel.h"
-#include "ua_util_internal.h"
+#include "util/ua_util_internal.h"
 #include "ziptree.h"
 
 _UA_BEGIN_DECLS
@@ -131,6 +131,8 @@ struct UA_Client {
      * DiscoveryUrl is selected via FindServers. This triggers a reconnect if
      * EndpointUrl != DiscoveryUrl. */
     UA_String discoveryUrl;
+
+    UA_ApplicationDescription serverDescription;
 
     /* SecureChannel */
     UA_SecureChannel channel;

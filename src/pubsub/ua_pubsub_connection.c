@@ -36,7 +36,7 @@ decodeNetworkMessage(UA_Server *server, UA_ByteString *buffer, size_t *pos,
 
     UA_StatusCode rv = UA_NetworkMessage_decodeHeaders(buffer, pos, nm);
     if(rv != UA_STATUSCODE_GOOD) {
-        UA_LOG_WARNING_CONNECTION(&server->config.logger, connection,
+        UA_LOG_WARNING_CONNECTION(server->config.logging, connection,
                                   "PubSub receive. decoding headers failed");
         UA_NetworkMessage_clear(nm);
         return rv;
@@ -56,10 +56,10 @@ decodeNetworkMessage(UA_Server *server, UA_ByteString *buffer, size_t *pos,
             if(retval != UA_STATUSCODE_GOOD)
                 continue;
             processed = true;
-            rv = verifyAndDecryptNetworkMessage(&server->config.logger, buffer, pos,
+            rv = verifyAndDecryptNetworkMessage(server->config.logging, buffer, pos,
                                                 nm, readerGroup);
             if(rv != UA_STATUSCODE_GOOD) {
-                UA_LOG_WARNING_CONNECTION(&server->config.logger, connection,
+                UA_LOG_WARNING_CONNECTION(server->config.logging, connection,
                                           "Subscribe failed, verify and decrypt "
                                           "network message failed.");
                 UA_NetworkMessage_clear(nm);
@@ -73,7 +73,7 @@ decodeNetworkMessage(UA_Server *server, UA_ByteString *buffer, size_t *pos,
 
 loops_exit:
     if(!processed) {
-        UA_LOG_INFO_CONNECTION(&server->config.logger, connection,
+        UA_LOG_INFO_CONNECTION(server->config.logging, connection,
                                "Dataset reader not found. Check PublisherId, "
                                "WriterGroupId and DatasetWriterId");
         /* Possible multicast scenario: there are multiple connections (with one
@@ -159,62 +159,70 @@ UA_PubSubConnectionConfig_clear(UA_PubSubConnectionConfig *connectionConfig) {
 }
 
 UA_StatusCode
-UA_PubSubConnection_create(UA_Server *server,
-                           const UA_PubSubConnectionConfig *connectionConfig,
-                           UA_NodeId *connectionIdentifier) {
+UA_PubSubConnection_create(UA_Server *server, const UA_PubSubConnectionConfig *cc,
+                           UA_NodeId *cId) {
     /* Validate preconditions */
     UA_CHECK_MEM(server, return UA_STATUSCODE_BADINTERNALERROR);
-    UA_CHECK_ERROR(connectionConfig != NULL, return UA_STATUSCODE_BADINTERNALERROR,
-                       &server->config.logger, UA_LOGCATEGORY_SERVER,
-                       "PubSub Connection creation failed. No connection configuration supplied.");
+    UA_CHECK_ERROR(cc != NULL, return UA_STATUSCODE_BADINTERNALERROR,
+                   server->config.logging, UA_LOGCATEGORY_SERVER,
+                   "PubSub Connection creation failed. Missing connection configuration.");
 
     /* Allocate */
-    UA_PubSubConnection *connection = (UA_PubSubConnection *)
+    UA_PubSubConnection *c = (UA_PubSubConnection *)
         UA_calloc(1, sizeof(UA_PubSubConnection));
-    if(!connection) {
-        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
+    if(!c) {
+        UA_LOG_ERROR(server->config.logging, UA_LOGCATEGORY_SERVER,
                      "PubSub Connection creation failed. Out of Memory.");
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
-    connection->componentType = UA_PUBSUB_COMPONENT_CONNECTION;
+    c->componentType = UA_PUBSUB_COMPONENT_CONNECTION;
 
     /* Copy the connection config */
-    UA_StatusCode ret =
-        UA_PubSubConnectionConfig_copy(connectionConfig, &connection->config);
-    UA_CHECK_STATUS(ret, UA_free(connection); return ret);
+    UA_StatusCode ret = UA_PubSubConnectionConfig_copy(cc, &c->config);
+    UA_CHECK_STATUS(ret, UA_free(c); return ret);
 
     /* Assign the connection identifier */
 #ifdef UA_ENABLE_PUBSUB_INFORMATIONMODEL
     /* Internally create a unique id */
-    addPubSubConnectionRepresentation(server, connection);
+    addPubSubConnectionRepresentation(server, c);
 #else
     /* Create a unique NodeId that does not correspond to a Node */
     UA_PubSubManager_generateUniqueNodeId(&server->pubSubManager,
-                                          &connection->identifier);
+                                          &c->identifier);
 #endif
-    if(connectionIdentifier)
-        UA_NodeId_copy(&connection->identifier, connectionIdentifier);
 
     /* Register */
     UA_PubSubManager *pubSubManager = &server->pubSubManager;
-    TAILQ_INSERT_HEAD(&pubSubManager->connections, connection, listEntry);
+    TAILQ_INSERT_HEAD(&pubSubManager->connections, c, listEntry);
     pubSubManager->connectionsSize++;
 
+    /* Validate-connect to check the parameters */
+    ret = UA_PubSubConnection_connect(server, c, true);
+    if(ret != UA_STATUSCODE_GOOD)
+        goto cleanup;
+
     /* Make the connection operational */
-    ret = UA_PubSubConnection_setPubSubState(server, connection, UA_PUBSUBSTATE_OPERATIONAL,
+    ret = UA_PubSubConnection_setPubSubState(server, c, UA_PUBSUBSTATE_OPERATIONAL,
                                              UA_STATUSCODE_GOOD);
     if(ret != UA_STATUSCODE_GOOD)
-        UA_PubSubConnection_delete(server, connection);
+        goto cleanup;
+
+    /* Copy the created NodeId to the output. Cannot fail as we create a
+     * numerical NodeId. */
+    if(cId)
+        UA_NodeId_copy(&c->identifier, cId);
+
+ cleanup:
+    if(ret != UA_STATUSCODE_GOOD)
+        UA_PubSubConnection_delete(server, c);
     return ret;
 }
 
 UA_StatusCode
-UA_Server_addPubSubConnection(UA_Server *server,
-                              const UA_PubSubConnectionConfig *connectionConfig,
-                              UA_NodeId *connectionIdentifier) {
+UA_Server_addPubSubConnection(UA_Server *server, const UA_PubSubConnectionConfig *cc,
+                              UA_NodeId *cId) {
     UA_LOCK(&server->serviceMutex);
-    UA_StatusCode res =
-        UA_PubSubConnection_create(server, connectionConfig, connectionIdentifier);
+    UA_StatusCode res = UA_PubSubConnection_create(server, cc, cId);
     UA_UNLOCK(&server->serviceMutex);
     return res;
 }
@@ -229,8 +237,7 @@ UA_PubSubConnection_delete(UA_Server *server, UA_PubSubConnection *c) {
     /* Stop, unfreeze and delete all WriterGroups attached to the Connection */
     UA_WriterGroup *writerGroup, *tmpWriterGroup;
     LIST_FOREACH_SAFE(writerGroup, &c->writerGroups, listEntry, tmpWriterGroup) {
-        UA_WriterGroup_setPubSubState(server, writerGroup, UA_PUBSUBSTATE_DISABLED,
-                                      UA_STATUSCODE_BADSHUTDOWN);
+        UA_WriterGroup_setPubSubState(server, writerGroup, UA_PUBSUBSTATE_DISABLED);
         UA_WriterGroup_unfreezeConfiguration(server, writerGroup);
         UA_WriterGroup_remove(server, writerGroup);
     }
@@ -238,8 +245,7 @@ UA_PubSubConnection_delete(UA_Server *server, UA_PubSubConnection *c) {
     /* Stop, unfreeze and delete all ReaderGroups attached to the Connection */
     UA_ReaderGroup *readerGroup, *tmpReaderGroup;
     LIST_FOREACH_SAFE(readerGroup, &c->readerGroups, listEntry, tmpReaderGroup) {
-        UA_ReaderGroup_setPubSubState(server, readerGroup, UA_PUBSUBSTATE_DISABLED,
-                                      UA_STATUSCODE_BADSHUTDOWN);
+        UA_ReaderGroup_setPubSubState(server, readerGroup, UA_PUBSUBSTATE_DISABLED);
         UA_ReaderGroup_unfreezeConfiguration(server, readerGroup);
         UA_ReaderGroup_remove(server, readerGroup);
     }
@@ -308,12 +314,10 @@ UA_PubSubConnection_setPubSubState(UA_Server *server, UA_PubSubConnection *c,
 
             /* Disable Reader and WriterGroups */
             LIST_FOREACH(readerGroup, &c->readerGroups, listEntry) {
-                UA_ReaderGroup_setPubSubState(server, readerGroup, state,
-                                              UA_STATUSCODE_BADRESOURCEUNAVAILABLE);
+                UA_ReaderGroup_setPubSubState(server, readerGroup, readerGroup->state);
             }
             LIST_FOREACH(writerGroup, &c->writerGroups, listEntry) {
-                UA_WriterGroup_setPubSubState(server, writerGroup, state,
-                                              UA_STATUSCODE_BADRESOURCEUNAVAILABLE);
+                UA_WriterGroup_setPubSubState(server, writerGroup, writerGroup->state);
             }
             break;
 
@@ -326,13 +330,13 @@ UA_PubSubConnection_setPubSubState(UA_Server *server, UA_PubSubConnection *c,
                 c->state = UA_PUBSUBSTATE_OPERATIONAL;
             else
                 c->state = UA_PUBSUBSTATE_PREOPERATIONAL;
-            ret = UA_PubSubConnection_connect(server, c);
+            ret = UA_PubSubConnection_connect(server, c, false);
             if(ret != UA_STATUSCODE_GOOD)
                 UA_PubSubConnection_setPubSubState(server, c,
                                                    UA_PUBSUBSTATE_ERROR, ret);
             break;
         default:
-            UA_LOG_WARNING_CONNECTION(&server->config.logger, c,
+            UA_LOG_WARNING_CONNECTION(server->config.logging, c,
                                       "Received unknown PubSub state!");
             return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -340,8 +344,10 @@ UA_PubSubConnection_setPubSubState(UA_Server *server, UA_PubSubConnection *c,
     /* Inform application about state change */
     if(c->state != oldState) {
         UA_ServerConfig *config = &server->config;
+        UA_UNLOCK(&server->serviceMutex);
         if(config->pubSubConfig.stateChangeCallback)
             config->pubSubConfig.stateChangeCallback(server, &c->identifier, state, cause);
+        UA_LOCK(&server->serviceMutex);
     }
     return ret;
 }

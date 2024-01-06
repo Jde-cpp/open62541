@@ -13,6 +13,7 @@
 #include "ua_pubsub.h"
 #include "ua_server_internal.h"
 #include "ua_pubsub_networkmessage.h"
+#include "test_helpers.h"
 
 /* Adjust your configuration globally for the ethernet tests here: */
 #include "ethernet_config.h"
@@ -23,7 +24,7 @@
 UA_Server *server = NULL;
 
 static void setup(void) {
-    server = UA_Server_new();
+    server = UA_Server_newForUnitTest();
     ck_assert(server != NULL);
     UA_ServerConfig *config = UA_Server_getConfig(server);
     UA_ServerConfig_setDefault(config);
@@ -266,6 +267,9 @@ START_TEST(GetMaximalConnectionConfigurationAndCompareValues){
 } END_TEST
 
 int main(void) {
+    if(SKIP_ETHERNET && strlen(SKIP_ETHERNET) > 0)
+        return EXIT_SUCCESS;
+
     TCase *tc_add_pubsub_connections_minimal_config = tcase_create("Create PubSub Ethernet ETF Connections with minimal valid config");
     tcase_add_checked_fixture(tc_add_pubsub_connections_minimal_config, setup, teardown);
     tcase_add_test(tc_add_pubsub_connections_minimal_config, AddConnectionsWithMinimalValidConfiguration);

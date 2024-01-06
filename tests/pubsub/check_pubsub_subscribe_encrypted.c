@@ -10,6 +10,7 @@
 #include <open62541/server_pubsub.h>
 #include <open62541/types_generated_handling.h>
 
+#include "test_helpers.h"
 #include "ua_pubsub.h"
 #include "ua_server_internal.h"
 #include "testing_clock.h"
@@ -49,17 +50,16 @@ UA_NodeId publishedDataSetTest;
 static void setup(void) {
     /*Add setup by creating new server with valid configuration */
     UA_StatusCode retVal = UA_STATUSCODE_GOOD;
-    server = UA_Server_new();
+    server = UA_Server_newForUnitTest();
     ck_assert(server != NULL);
     config = UA_Server_getConfig(server);
-    retVal |= UA_ServerConfig_setMinimal(config, UA_SUBSCRIBER_PORT, NULL);
 
     /* Instantiate the PubSub SecurityPolicy */
     config->pubSubConfig.securityPolicies = (UA_PubSubSecurityPolicy*)
         UA_malloc(sizeof(UA_PubSubSecurityPolicy));
     config->pubSubConfig.securityPoliciesSize = 1;
     UA_PubSubSecurityPolicy_Aes128Ctr(config->pubSubConfig.securityPolicies,
-                                      &config->logger);
+                                      config->logging);
 
     retVal |= UA_Server_run_startup(server);
 

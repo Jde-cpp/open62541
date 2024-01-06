@@ -1,4 +1,9 @@
-add_compile_options(-Wno-unused-variable -Wno-unused-function)
+if(MSVC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W1") # Reduce warnings level
+else()
+    add_compile_options(-Wno-unused-variable -Wno-unused-function)
+endif()
+
 # Load CMake Packages
 find_package(Check REQUIRED)
 set(LIBS ${CHECK_LIBRARIES} ${open62541_LIBRARIES})
@@ -56,86 +61,15 @@ else()
     set(TESTS_BINARY_DIR ${CMAKE_BINARY_DIR}/bin/tests)
 endif()
 
-
-# Use different plugins for testing
+# Use additional plugins for testing
 set(test_plugin_sources
-    ${PROJECT_SOURCE_DIR}/arch/common/ua_timer.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_common.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_posix.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_select.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_epoll.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_tcp.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_udp.c
-    ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_interrupt.c
     ${PROJECT_SOURCE_DIR}/tests/testing-plugins/testing_clock.c
-    ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.c
-    ${PROJECT_SOURCE_DIR}/plugins/ua_config_default.c
-    ${PROJECT_SOURCE_DIR}/plugins/ua_accesscontrol_default.c
-    ${PROJECT_SOURCE_DIR}/plugins/ua_nodestore_ziptree.c
-    ${PROJECT_SOURCE_DIR}/plugins/ua_nodestore_hashmap.c
-    ${PROJECT_SOURCE_DIR}/plugins/crypto/ua_securitypolicy_none.c
-    ${PROJECT_SOURCE_DIR}/plugins/crypto/ua_pki_none.c
     ${PROJECT_SOURCE_DIR}/tests/testing-plugins/testing_policy.c
-    ${PROJECT_SOURCE_DIR}/tests/testing-plugins/testing_networklayers.c
-    )
-
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-  list(APPEND test_plugin_sources ${PROJECT_SOURCE_DIR}/arch/eventloop_posix_eth.c)
-endif()
-
-if(UA_ENABLE_MQTT)
-    list(APPEND test_plugin_sources ${PROJECT_SOURCE_DIR}/arch/eventloop_mqtt.c)
-endif()
-
-if(UA_ENABLE_HISTORIZING)
-    set(test_plugin_sources ${test_plugin_sources}
-        ${PROJECT_SOURCE_DIR}/plugins/historydata/ua_history_data_backend_memory.c
-        ${PROJECT_SOURCE_DIR}/plugins/historydata/ua_history_data_gathering_default.c
-        ${PROJECT_SOURCE_DIR}/plugins/historydata/ua_history_database_default.c)
-endif()
-
-if(UA_ENABLE_ENCRYPTION_MBEDTLS OR UA_ENABLE_PUBSUB_ENCRYPTION)
-  list(INSERT test_plugin_sources 0
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.h
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.c)
-endif()
-
-if(UA_ENABLE_PUBSUB_ENCRYPTION)
-  list(INSERT test_plugin_sources 1
-    ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_pubsub_aes128ctr.c
-    ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_pubsub_aes256ctr.c)
-endif()
-
-if(UA_ENABLE_ENCRYPTION_MBEDTLS)
-  list(INSERT test_plugin_sources 1
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/ua_securitypolicy_basic128rsa15.c
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/ua_securitypolicy_basic256.c
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/ua_securitypolicy_basic256sha256.c
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/ua_securitypolicy_aes128sha256rsaoaep.c
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/ua_securitypolicy_aes256sha256rsapss.c
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/ua_pki_mbedtls.c)
-endif()
-
-if(UA_ENABLE_ENCRYPTION_OPENSSL OR UA_ENABLE_ENCRYPTION_LIBRESSL)
-  list(INSERT test_plugin_sources 0
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/securitypolicy_openssl_common.h
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/securitypolicy_openssl_common.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_basic128rsa15.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_basic256.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_basic256sha256.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_aes128sha256rsaoaep.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_aes256sha256rsapss.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_create_certificate.c
-              ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_pki_openssl.c)
-endif()
+    ${PROJECT_SOURCE_DIR}/tests/testing-plugins/testing_networklayers.c)
 
 if(UA_ENABLE_PUBSUB)
     # Add ethernet_config.h to ensure the tests are rebuild when it changes
     list(APPEND test_plugin_sources ${PROJECT_SOURCE_DIR}/tests/pubsub/ethernet_config.h)
-endif()
-
-if(UA_ENABLE_NODESETLOADER)
-    list(APPEND test_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_nodesetloader.c)
 endif()
 
 if(UA_NAMESPACE_ZERO STREQUAL "FULL")
@@ -202,7 +136,7 @@ function(ua_add_test test_path_relative)
     string(REPLACE "/" ";" QUALIFIED_PATHNAME ${PATH_WITHOUT_EXTENSION})
     list(POP_BACK QUALIFIED_PATHNAME TEST_NAME)
 
-    add_executable(${TEST_NAME} ${test_path_relative} ${ARGN} $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-testplugins>)
+    add_executable(${TEST_NAME} ${test_path_relative} ${ARGN} $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-plugins> $<TARGET_OBJECTS:open62541-testplugins>)
     target_link_libraries(${TEST_NAME} ${LIBS})
     add_test_valgrind(${TEST_NAME} ${TESTS_BINARY_DIR}/${TEST_NAME})
     if(UA_ENABLE_NODESET_INJECTOR)
@@ -262,6 +196,14 @@ ua_add_test(server/check_services_attributes.c)
 ua_add_test(server/check_services_nodemanagement.c)
 ua_add_test(server/check_server_callbacks.c)
 
+add_executable(check_server_password server/check_server_password.c $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-plugins> $<TARGET_OBJECTS:open62541-testplugins>)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+target_link_libraries(check_server_password ${LIBS} -lcrypt)
+else()
+target_link_libraries(check_server_password ${LIBS})
+endif()
+add_test_valgrind(server_password ${TESTS_BINARY_DIR}/check_server_password)
+
 if (UA_MULTITHREADING GREATER_EQUAL 100)
     ua_add_test(multithreading/check_mt_addVariableNode.c)
     ua_add_test(multithreading/check_mt_addVariableTypeNode.c)
@@ -304,10 +246,6 @@ if(UA_ENABLE_SUBSCRIPTIONS)
   ua_add_test(server/check_local_monitored_item.c)
 endif()
 
-if(UA_ENABLE_DISCOVERY)
-    ua_add_test(server/check_discovery.c)
-endif()
-
 if(UA_ENABLE_PUBSUB)
     ua_add_test(pubsub/check_pubsub_encoding.c)
     ua_add_test(pubsub/check_pubsub_encoding_custom.c)
@@ -342,13 +280,11 @@ if(UA_ENABLE_PUBSUB)
         endif()
     endif()
 
-    if (UA_ENABLE_PUBSUB_MONITORING)
-        if(NOT UA_ENABLE_PUBSUB_ENCRYPTION) #ToDO: Multiple Receive handling for PubsubEncryption
-            ua_add_test(pubsub/check_pubsub_subscribe_msgrcvtimeout.c)
-        endif()
+    if(UA_ENABLE_PUBSUB_MONITORING)
+       ua_add_test(pubsub/check_pubsub_subscribe_msgrcvtimeout.c)
     endif()
 
-    if(UA_ENABLE_PUBSUB_ETH_UADP)
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         ua_add_test(pubsub/check_pubsub_connection_ethernet.c)
         ua_add_test(pubsub/check_pubsub_publish_ethernet.c)
         ua_add_test(pubsub/check_pubsub_connection_ethernet_etf.c)
@@ -360,10 +296,7 @@ if(UA_ENABLE_PUBSUB)
 
     if(UA_ENABLE_PUBSUB_INFORMATIONMODEL)
         ua_add_test(pubsub/check_pubsub_informationmodel.c)
-        if(UA_ENABLE_PUBSUB_INFORMATIONMODEL_METHODS)
-            ua_add_test(pubsub/check_pubsub_informationmodel_methods.c)
-
-        endif()
+        ua_add_test(pubsub/check_pubsub_informationmodel_methods.c)
     endif()
     if(UA_ENABLE_MQTT)
         ua_add_test(pubsub/check_pubsub_connection_mqtt.c)
@@ -421,6 +354,10 @@ if(UA_ENABLE_ENCRYPTION)
     else()
         MESSAGE(WARNING "Certificate authentication with LibreSSL as crypto backend is not supported.")
     endif()
+
+    if(UA_ENABLE_DISCOVERY)
+        ua_add_test(server/check_discovery.c)
+    endif()
 endif()
 
 if(UA_ENABLE_ENCRYPTION_MBEDTLS)
@@ -429,6 +366,8 @@ if(UA_ENABLE_ENCRYPTION_MBEDTLS)
     ua_add_test(encryption/check_encryption_basic256sha256.c)
     ua_add_test(encryption/check_encryption_aes128sha256rsaoaep.c)
     ua_add_test(encryption/check_encryption_aes256sha256rsapss.c)
+    ua_add_test(encryption/check_username_connect_none.c)
+    ua_add_test(encryption/check_encryption_key_password.c)
 endif()
 
 if(UA_ENABLE_ENCRYPTION_MBEDTLS AND UA_ENABLE_CERT_REJECTED_DIR)
@@ -441,7 +380,9 @@ if(UA_ENABLE_ENCRYPTION_OPENSSL OR UA_ENABLE_ENCRYPTION_LIBRESSL)
     ua_add_test(encryption/check_encryption_basic256sha256.c)
     ua_add_test(encryption/check_encryption_aes128sha256rsaoaep.c)
     ua_add_test(encryption/check_encryption_aes256sha256rsapss.c)
+    ua_add_test(encryption/check_encryption_key_password.c)
     ua_add_test(encryption/check_cert_generation.c)
+    ua_add_test(encryption/check_username_connect_none.c)
 endif()
 
 # Tests for Nodeset Compiler

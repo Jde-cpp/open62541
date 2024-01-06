@@ -122,11 +122,13 @@ UA_Session_generateNonce(UA_Session *session) {
         generateNonce(channel->securityPolicy->policyContext, &session->serverNonce);
 }
 
-void UA_Session_updateLifetime(UA_Session *session) {
-    session->validTill = UA_DateTime_nowMonotonic() +
+void
+UA_Session_updateLifetime(UA_Session *session, UA_DateTime now,
+                          UA_DateTime nowMonotonic) {
+    session->validTill = nowMonotonic +
         (UA_DateTime)(session->timeout * UA_DATETIME_MSEC);
 #ifdef UA_ENABLE_DIAGNOSTICS
-    session->diagnostics.clientLastContactTime = UA_DateTime_now();
+    session->diagnostics.clientLastContactTime = now;
 #endif
 }
 
@@ -176,7 +178,6 @@ UA_Session_detachSubscription(UA_Server *server, UA_Session *session,
     while((pre = UA_Session_dequeuePublishReq(session))) {
         UA_PublishResponse *response = &pre->response;
         response->responseHeader.serviceResult = UA_STATUSCODE_BADNOSUBSCRIPTION;
-        response->responseHeader.timestamp = UA_DateTime_now();
         sendResponse(server, session, session->header.channel, pre->requestId,
                      (UA_Response*)response, &UA_TYPES[UA_TYPES_PUBLISHRESPONSE]);
         UA_PublishResponse_clear(response);
@@ -344,7 +345,9 @@ getSessionAttribute(UA_Server *server, const UA_NodeId *sessionId,
 
     if(copy)
         return UA_Variant_copy(attr, outValue);
+
     *outValue = *attr;
+    outValue->storageType = UA_VARIANT_DATA_NODELETE;
     return UA_STATUSCODE_GOOD;
 }
 

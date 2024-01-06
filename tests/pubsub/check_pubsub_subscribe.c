@@ -11,10 +11,14 @@
 #include <check.h>
 #include <time.h>
 
+#include "test_helpers.h"
 #include "testing_clock.h"
 #include "open62541/types_generated_handling.h"
 #include "ua_pubsub.h"
 #include "ua_server_internal.h"
+
+#define MULTICAST_URL "opc.udp://224.0.0.22:4801/"
+//#define MULTICAST_URL "opc.udp://[ff01::100]:4801/"
 
 #define UA_SUBSCRIBER_PORT       4801    /* Port for Subscriber*/
 #define PUBLISH_INTERVAL         5       /* Publish interval*/
@@ -92,7 +96,7 @@ static void addVariables(void) {
 /* setup() is to create an environment for test cases */
 static void setup(void) {
     /*Add setup by creating new server with valid configuration */
-    server = UA_Server_new();
+    server = UA_Server_newForUnitTest();
     ck_assert(server != NULL);
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     config = UA_Server_getConfig(server);
@@ -105,8 +109,7 @@ static void setup(void) {
     UA_PubSubConnectionConfig connectionConfig;
     memset(&connectionConfig, 0, sizeof(UA_PubSubConnectionConfig));
     connectionConfig.name = UA_STRING("UADP Test Connection");
-    UA_NetworkAddressUrlDataType networkAddressUrl =
-        {UA_STRING_NULL, UA_STRING("opc.udp://224.0.0.22:4801/")};
+    UA_NetworkAddressUrlDataType networkAddressUrl = {UA_STRING_NULL, UA_STRING(MULTICAST_URL)};
     UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
                          &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]);
     connectionConfig.transportProfileUri =
@@ -1649,7 +1652,8 @@ START_TEST(SinglePublishSubscribeHeartbeat) {
      * we compare the lastHeartbeatReceived with the static timestamp
      * (given by UA_DateTime_nowMonotonic()). If the timestamps are equal,
      * the code path was executed and the lastHeartbeatReceived set correctly */
-    ck_assert(UA_DateTime_nowMonotonic() == dsr->lastHeartbeatReceived);
+    UA_EventLoop *el = server->config.eventLoop;
+    ck_assert(el->dateTime_nowMonotonic(el) == dsr->lastHeartbeatReceived);
 
 } END_TEST
 

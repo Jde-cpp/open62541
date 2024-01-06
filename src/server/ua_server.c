@@ -248,7 +248,7 @@ UA_Server_delete(UA_Server *server) {
     }
 
     if(server->state != UA_LIFECYCLESTATE_STOPPED) {
-        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
+        UA_LOG_ERROR(server->config.logging, UA_LOGCATEGORY_SERVER,
                      "The server must be fully stopped before it can be deleted");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -262,19 +262,11 @@ UA_Server_delete(UA_Server *server) {
     UA_Array_delete(server->namespaces, server->namespacesSize, &UA_TYPES[UA_TYPES_STRING]);
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS
-    UA_MonitoredItem *mon, *mon_tmp;
-    LIST_FOREACH_SAFE(mon, &server->localMonitoredItems, listEntry, mon_tmp) {
-        LIST_REMOVE(mon, listEntry);
-        UA_MonitoredItem_delete(server, mon);
-    }
-
     /* Remove subscriptions without a session */
     UA_Subscription *sub, *sub_tmp;
     LIST_FOREACH_SAFE(sub, &server->subscriptions, serverListEntry, sub_tmp) {
         UA_Subscription_delete(server, sub);
     }
-    UA_assert(server->monitoredItemsSize == 0);
-    UA_assert(server->subscriptionsSize == 0);
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
     UA_ConditionList_delete(server);
@@ -292,6 +284,11 @@ UA_Server_delete(UA_Server *server) {
 
     /* Clean up the Admin Session */
     UA_Session_clear(&server->adminSession, server);
+#ifdef UA_ENABLE_SUBSCRIPTIONS
+    server->adminSubscription = NULL;
+    UA_assert(server->monitoredItemsSize == 0);
+    UA_assert(server->subscriptionsSize == 0);
+#endif
 
     /* Remove all remaining server components (must be all stopped) */
     ZIP_ITER(UA_ServerComponentTree, &server->serverComponents,
@@ -316,8 +313,8 @@ UA_Server_delete(UA_Server *server) {
 static void
 serverHouseKeeping(UA_Server *server, void *_) {
     UA_LOCK(&server->serviceMutex);
-    UA_DateTime nowMonotonic = UA_DateTime_nowMonotonic();
-    UA_Server_cleanupSessions(server, nowMonotonic);
+    UA_EventLoop *el = server->config.eventLoop;
+    UA_Server_cleanupSessions(server, el->dateTime_nowMonotonic(el));
     UA_UNLOCK(&server->serviceMutex);
 }
 
@@ -335,7 +332,7 @@ static UA_Server *
 UA_Server_init(UA_Server *server) {
     UA_StatusCode res = UA_STATUSCODE_GOOD;
     UA_CHECK_FATAL(UA_Server_NodestoreIsConfigured(server), goto cleanup,
-                   &server->config.logger, UA_LOGCATEGORY_SERVER,
+                   server->config.logging, UA_LOGCATEGORY_SERVER,
                    "No Nodestore configured in the server");
 
     /* Init start time to zero, the actual start time will be sampled in
@@ -356,6 +353,13 @@ UA_Server_init(UA_Server *server) {
     server->adminSession.sessionId.identifier.guid.data1 = 1;
     server->adminSession.validTill = UA_INT64_MAX;
     server->adminSession.sessionName = UA_STRING_ALLOC("Administrator");
+
+#ifdef UA_ENABLE_SUBSCRIPTIONS
+    /* Initialize the adminSubscription */
+    server->adminSubscription = UA_Subscription_new();
+    UA_CHECK_MEM(server->adminSubscription, goto cleanup);
+    UA_Session_attachSubscription(&server->adminSession, server->adminSubscription);
+#endif
 
     /* Create Namespaces 0 and 1
      * Ns1 will be filled later with the uri from the app description */
@@ -423,33 +427,18 @@ UA_Server_newWithConfig(UA_ServerConfig *config) {
     UA_CHECK_MEM(config, return NULL);
 
     UA_CHECK_LOG(config->eventLoop != NULL, return NULL, ERROR,
-                 &config->logger, UA_LOGCATEGORY_SERVER, "No EventLoop configured");
+                 config->logging, UA_LOGCATEGORY_SERVER, "No EventLoop configured");
 
     UA_Server *server = (UA_Server *)UA_calloc(1, sizeof(UA_Server));
     UA_CHECK_MEM(server, UA_ServerConfig_clean(config); return NULL);
 
     server->config = *config;
 
-    /* The config might have been "moved" into the server struct. Ensure that
-     * the logger pointer is correct. */
-    for(size_t i = 0; i < server->config.securityPoliciesSize; i++)
-        if(server->config.securityPolicies[i].logger == &config->logger)
-            server->config.securityPolicies[i].logger = &server->config.logger;
-
-    if(server->config.eventLoop->logger == &config->logger)
-        server->config.eventLoop->logger = &server->config.logger;
-
-    if((server->config.logging == NULL) ||
-       (server->config.logging == &config->logger)) {
-        /* re-set the logger pointer */
-        server->config.logging = &server->config.logger;
-    }
-    if(!server->config.secureChannelPKI.logging ||
-       server->config.secureChannelPKI.logging == &config->logging)
-        server->config.secureChannelPKI.logging = &server->config.logging;
-    if(!server->config.sessionPKI.logging ||
-       server->config.sessionPKI.logging == &config->logging)
-        server->config.sessionPKI.logging = &server->config.logging;
+    /* If not defined, set logging to what the server has */
+    if(!server->config.secureChannelPKI.logging)
+        server->config.secureChannelPKI.logging = server->config.logging;
+    if(!server->config.sessionPKI.logging)
+        server->config.sessionPKI.logging = server->config.logging;
 
     /* Reset the old config */
     memset(config, 0, sizeof(UA_ServerConfig));
@@ -463,9 +452,15 @@ setServerShutdown(UA_Server *server) {
         return false;
     if(server->config.shutdownDelay == 0)
         return true;
-    UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_SERVER,
-                   "Shutting down the server with a delay of %i ms", (int)server->config.shutdownDelay);
-    server->endTime = UA_DateTime_now() + (UA_DateTime)(server->config.shutdownDelay * UA_DATETIME_MSEC);
+
+    UA_LOG_WARNING(server->config.logging, UA_LOGCATEGORY_SERVER,
+                   "Shutting down the server with a delay of %i ms",
+                   (int)server->config.shutdownDelay);
+
+    UA_EventLoop *el = server->config.eventLoop;
+    server->endTime = el->dateTime_now(el) +
+        (UA_DateTime)(server->config.shutdownDelay * UA_DATETIME_MSEC);
+
     return false;
 }
 
@@ -487,6 +482,7 @@ UA_Server_addTimedCallback(UA_Server *server, UA_ServerCallback callback,
 UA_StatusCode
 addRepeatedCallback(UA_Server *server, UA_ServerCallback callback,
                     void *data, UA_Double interval_ms, UA_UInt64 *callbackId) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     return server->config.eventLoop->
         addCyclicCallback(server->config.eventLoop, (UA_Callback) callback,
                           server, data, interval_ms, NULL,
@@ -506,6 +502,7 @@ UA_Server_addRepeatedCallback(UA_Server *server, UA_ServerCallback callback,
 UA_StatusCode
 changeRepeatedCallbackInterval(UA_Server *server, UA_UInt64 callbackId,
                                UA_Double interval_ms) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     return server->config.eventLoop->
         modifyCyclicCallback(server->config.eventLoop, callbackId, interval_ms,
                              NULL, UA_TIMER_HANDLE_CYCLEMISS_WITH_CURRENTTIME);
@@ -523,6 +520,7 @@ UA_Server_changeRepeatedCallbackInterval(UA_Server *server, UA_UInt64 callbackId
 
 void
 removeCallback(UA_Server *server, UA_UInt64 callbackId) {
+    UA_LOCK_ASSERT(&server->serviceMutex, 1);
     UA_EventLoop *el = server->config.eventLoop;
     if(el) {
         el->removeCyclicCallback(el, callbackId);
@@ -617,23 +615,25 @@ getSecurityPolicyByUri(const UA_Server *server, const UA_ByteString *securityPol
  * SecurityPolicies */
 static UA_StatusCode
 verifyServerApplicationURI(const UA_Server *server) {
-    const UA_String securityPolicyNoneUri = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
+    const UA_String securityPolicyNoneUri =
+        UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
     for(size_t i = 0; i < server->config.securityPoliciesSize; i++) {
         UA_SecurityPolicy *sp = &server->config.securityPolicies[i];
-        if(UA_String_equal(&sp->policyUri, &securityPolicyNoneUri) && (sp->localCertificate.length == 0))
+        if(UA_String_equal(&sp->policyUri, &securityPolicyNoneUri) &&
+           sp->localCertificate.length == 0)
             continue;
         UA_StatusCode retval = server->config.secureChannelPKI.
             verifyApplicationURI(&server->config.secureChannelPKI,
                                  &sp->localCertificate,
                                  &server->config.applicationDescription.applicationUri);
-
-        UA_CHECK_STATUS_ERROR(retval, return retval, &server->config.logger, UA_LOGCATEGORY_SERVER,
-                       "The configured ApplicationURI \"%.*s\" does not match the "
-                       "ApplicationURI specified in the certificate for the "
-                       "SecurityPolicy %.*s",
-                       (int)server->config.applicationDescription.applicationUri.length,
-                       server->config.applicationDescription.applicationUri.data,
-                       (int)sp->policyUri.length, sp->policyUri.data);
+        UA_CHECK_STATUS_ERROR(retval, return retval, server->config.logging,
+                              UA_LOGCATEGORY_SERVER,
+                              "The configured ApplicationURI \"%.*s\" does not match the "
+                              "ApplicationURI specified in the certificate for the "
+                              "SecurityPolicy %.*s", (int)
+                              server->config.applicationDescription.applicationUri.length,
+                              server->config.applicationDescription.applicationUri.data,
+                              (int)sp->policyUri.length, sp->policyUri.data);
     }
     return UA_STATUSCODE_GOOD;
 }
@@ -696,14 +696,28 @@ UA_Server_run_startup(UA_Server *server) {
      * with authentication tokens and other important variables E.g. if fuzzing
      * is enabled, and two clients are connected, subscriptions do not work
      * properly, since the tokens will be overridden to allow easier fuzzing. */
-    UA_LOG_FATAL(&server->config.logger, UA_LOGCATEGORY_SERVER,
+    UA_LOG_FATAL(server->config.logging, UA_LOGCATEGORY_SERVER,
                  "Server was built with unsafe fuzzing mode. "
                  "This should only be used for specific fuzzing builds.");
 #endif
 
     if(server->state != UA_LIFECYCLESTATE_STOPPED) {
-        UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_SERVER,
+        UA_LOG_WARNING(config->logging, UA_LOGCATEGORY_SERVER,
                        "The server has already been started");
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* Check if UserIdentityTokens are defined */
+    bool hasUserIdentityTokens = false;
+    for(size_t i = 0; i < config->endpointsSize; i++) {
+        if(config->endpoints[i].userIdentityTokensSize > 0) {
+            hasUserIdentityTokens = true;
+            break;
+        }
+    }
+    if(config->accessControl.userTokenPoliciesSize == 0 && hasUserIdentityTokens == false) {
+        UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
+                     "The server has no userIdentificationPolicies defined.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -711,7 +725,7 @@ UA_Server_run_startup(UA_Server *server) {
     UA_StatusCode retVal = UA_STATUSCODE_GOOD;
     UA_EventLoop *el = config->eventLoop;
     UA_CHECK_MEM_ERROR(el, return UA_STATUSCODE_BADINTERNALERROR,
-                       &config->logger, UA_LOGCATEGORY_SERVER,
+                       config->logging, UA_LOGCATEGORY_SERVER,
                        "An EventLoop must be configured");
 
     if(el->state != UA_EVENTLOOPSTATE_STARTED) {
@@ -726,11 +740,24 @@ UA_Server_run_startup(UA_Server *server) {
     retVal = verifyServerApplicationURI(server);
     UA_CHECK_STATUS(retVal, UA_UNLOCK(&server->serviceMutex); return retVal);
 
+#if UA_MULTITHREADING >= 100
+    /* Add regulare callback for async operation processing */
+    UA_AsyncManager_start(&server->asyncManager, server);
+#endif
+
+    /* Are there enough SecureChannels possible for the max number of sessions? */
+    if(config->maxSecureChannels != 0 &&
+       (config->maxSessions == 0 || config->maxSessions >= config->maxSecureChannels)) {
+        UA_LOG_WARNING(config->logging, UA_LOGCATEGORY_SERVER,
+                       "Maximum SecureChannels count not enough for the "
+                       "maximum Sessions count");
+    }
+
     /* Add a regular callback for housekeeping tasks. With a 1s interval. */
     retVal = addRepeatedCallback(server, serverHouseKeeping,
                                  NULL, 1000.0, &server->houseKeepingCallbackId);
     UA_CHECK_STATUS_ERROR(retVal, UA_UNLOCK(&server->serviceMutex); return retVal,
-                          &config->logger, UA_LOGCATEGORY_SERVER,
+                          config->logging, UA_LOGCATEGORY_SERVER,
                           "Could not create the server housekeeping task");
 
     /* Ensure that the uri for ns1 is set up from the app description */
@@ -738,7 +765,7 @@ UA_Server_run_startup(UA_Server *server) {
 
     /* At least one endpoint has to be configured */
     if(config->endpointsSize == 0) {
-        UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_SERVER,
+        UA_LOG_WARNING(config->logging, UA_LOGCATEGORY_SERVER,
                        "There has to be at least one endpoint.");
     }
 
@@ -758,7 +785,7 @@ UA_Server_run_startup(UA_Server *server) {
     writeValueAttribute(server, serverArray, &var);
 
     /* Sample the start time and set it to the Server object */
-    server->startTime = UA_DateTime_now();
+    server->startTime = el->dateTime_now(el);
     UA_Variant_init(&var);
     UA_Variant_setScalar(&var, &server->startTime, &UA_TYPES[UA_TYPES_DATETIME]);
     UA_NodeId startTime =
@@ -801,7 +828,8 @@ testShutdownCondition(UA_Server *server) {
     /* Was there a wait time until the shutdown configured? */
     if(server->endTime == 0)
         return false;
-    return (UA_DateTime_now() > server->endTime);
+    UA_EventLoop *el = server->config.eventLoop;
+    return (el->dateTime_now(el) > server->endTime);
 }
 
 static UA_Boolean
@@ -821,7 +849,7 @@ UA_Server_run_shutdown(UA_Server *server) {
     UA_LOCK(&server->serviceMutex);
 
     if(server->state != UA_LIFECYCLESTATE_STARTED) {
-        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
+        UA_LOG_ERROR(server->config.logging, UA_LOGCATEGORY_SERVER,
                      "The server is not started, cannot be shut down");
         UA_UNLOCK(&server->serviceMutex);
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -829,6 +857,11 @@ UA_Server_run_shutdown(UA_Server *server) {
 
     /* Set to stopping and notify the application */
     setServerLifecycleState(server, UA_LIFECYCLESTATE_STOPPING);
+
+#if UA_MULTITHREADING >= 100
+    /* Stop regular callback for async operation processing */
+    UA_AsyncManager_stop(&server->asyncManager, server);
+#endif
 
     /* Stop the regular housekeeping tasks */
     if(server->houseKeepingCallbackId != 0) {

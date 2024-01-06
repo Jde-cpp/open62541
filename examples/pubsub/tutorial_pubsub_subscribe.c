@@ -19,6 +19,7 @@
 #include <open62541/server_pubsub.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 UA_NodeId connectionIdentifier;
 UA_NodeId readerGroupIdentifier;
@@ -307,12 +308,14 @@ int main(int argc, char **argv) {
                 return EXIT_FAILURE;
             }
 
-            networkAddressUrl.networkInterface = UA_STRING(argv[2]);
             networkAddressUrl.url = UA_STRING(argv[1]);
         } else {
             printf ("Error: unknown URI\n");
             return EXIT_FAILURE;
         }
+    }
+    if (argc > 2) {
+        networkAddressUrl.networkInterface = UA_STRING(argv[2]);
     }
 
     return run(&transportProfile, &networkAddressUrl);

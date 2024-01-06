@@ -28,62 +28,65 @@
 #endif
 
 /**
+ * PubSub State Machine
+ * --------------------
  * 
- *  PubSub Components Interation Table
+ * The following table described the behaviour of components expected during
+ * state changes and also the integration which is expected between the
+ * components.
+ *
+ * We distinguish between `enabled` and `disabled` states. The disabled states
+ * or `Disabled` and `Error`. The difference is that disabled states need to
+ * manually enabled (via the _enable method call). The other states are either
+ * Operational or return automatically to the Operational state once the
+ * prerequisites are met.
  * 
- *  Following table captures the behaviour of components expected during specific state changes and also the integrations which is expected between the components.
- * 
- * 
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-| Component/State    |                     |         Disabled               |            Paused                |       Pre-Operational                |     Operational               |      Error                    |
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |                     | Channels for ReaderGroup and   |    No changes to channel         | Connection are initiated for         | Connection are initiated for  | Channels for ReaderGroup      |
-|                    |      Channel        | WriterGroup are closed         |                                  | any registerd Reader or Writergroups | any additional registered     | and WriterGroup are closed    |
-|                    |                     |                                |                                  |                                      | Reader or Writergroups        |                               |
-|     Connection     +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |    PubSubCallback   | Callback are Deregistered for  | Callback are Deregistered for    | Callback for send and recv           | Callback for send and recv    | Callback are Deregistered for |
-|                    |                     | send and recv channels         | send and recv channels           | channels are registered              | channels are registered       | send and recv channels        |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |      Triggers       |   ReaderGroup->Disable         |       No trigger required        |      No trigger required             |  ReaderGroup->Preoperational  |  ReaderGroup->Error           |
-|                    |                     |   WriterGroup->Disable         |                                  |                                      |  WriterGroup->Preoperational  |  WriterGroup->Error           |
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |                     |       No changes to channel    |    No changes to channel         | WriterGroup Connection should        | The WriterGroup connection    | No changes to channel         |
-|                    |      Channel        |                                |                                  | be initiated                         | must have been opened         |                               |
-|                    |                     |                                |                                  |                                      | successfully                  |                               |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|    WriterGroup     |    PubSubCallback   | Publish callback is            |     No changes to callback       |        No changes to callback        | Publish callback is           | Publish callback is           |
-|                    |                     | deregistered                   |                                  |                                      | registered                    | deregistered                  |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |                     |   DataSetWriter -> Disabled    |     No trigger required          |      No trigger required             | DataSetWriter->PreOperational |  DataSetWriter->Error         |
-|                    |      Triggers       |                                |                                  |                                      | Requires the Security Keys    |                               |
-|                    |                     |                                |                                  |                                      | to be set                     |                               |
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |                     |                                |                                  | ReaderGroup Connection should        | The ReaderGroup connection    |                               |
-|                    |      Channel        |   No changes to channel        |      No changes to channel       | be initiated                         | must have been opened         |    No changes to channel      |
-|                    |                     |                                |                                  |                                      | successfully                  |                               |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|    ReaderGroup     |    PubSubCallback   |                                                                                 No callback required                                                                     |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |    Triggers         |   DataSetReader -> Disabled    |     No trigger required          |      No trigger required             |  DataSetReader-> Operational  |  DataSetReader->Error         |
-|                    |                     |                                |  Only state variable is changed  |                                      |                               |                               |
-|                    |                     |                                |  when entering from Disable      |                                      |                               |                               |
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |        Channel      |                                                                                No changes to channel                                                                     |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|    DataSetWriter   |    PubSubCallback   |                                                                                No callback required                                                                      |
-|                    +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |    Triggers         |    No trigger required         |     No trigger required          |       DataSetWriter->Operational     |  No trigger required          |  No trigger required          |
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |      Channel        |                                                                          Channels handled in ReaderGroup                                                                 |
-|                    +---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|                    |    PubSubCallback   |                                                                                No callback required                                                                      |
-|    DataSetReader   +---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-|                    |    Triggers         |    No trigger required         |     No trigger required          |      no triggers                     |                               |                               |
-|                    |                     |                                |                                  | On receipt of first packet from both |  No trigger required          |  No trigger required          |
-|                    |                     |                                |                                  | ReaderGroup and Reader are pushed to |                               |                               |
-|                    |                     |                                |                                  | Operational state                    |                               |                               |
-+--------------------+---------------------+--------------------------------+----------------------------------+--------------------------------------+-------------------------------+-------------------------------+
-**/
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |**Component**   |       |**Disabled**        |**Paused**      |**Pre-Operational** |**Operational** |**Error**       |
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |PubSubConnection|Trigger|Manual disable      |Not available   |Manual enable ||    |Pre-Operational |Unrecoverable   |
+ * |                |       |                    |                |Recoverable abort of|&& Connected    |abort of the    |
+ * |                |       |                    |                |EventLoop connection|EventLoop       |EventLoop       |
+ * |                |       |                    |                |                    |connection      |connection ||   |
+ * |                |       |                    |                |                    |                |Internal Error  |
+ * |                +-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |                |Action |The underlying      |                |Start the async     |                |Same as the     |
+ * |                |       |connection is closed|                |opening of the      |                |Disabled case   |
+ * |                |       |(async). Immediately|                |underlying EventLoop|                |                |
+ * |                |       |set the EventLoop   |                |connection.         |                |                |
+ * |                |       |connection context  |                |Automatically switch|                |                |
+ * |                |       |pointer to NULL. So |                |to operational when |                |                |
+ * |                |       |that the            |                |the EventLoop       |                |                |
+ * |                |       |PubSubConnection can|                |connection is fully |                |                |
+ * |                |       |be freed without    |                |open. This can only |                |                |
+ * |                |       |waiting for the     |                |be signaled by the  |                |                |
+ * |                |       |EventLoop connection|                |underlying EventLoop|                |                |
+ * |                |       |to finish closing.  |                |connection in the   |                |                |
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |WriterGroup     |Trigger|Manual disable      |WG is enabled &&|WG is enabled &&    |WG is enabled &&|Internal error  |
+ * |                |       |                    |PubSubConnection|PubSubConnection    |PubSubConnection|                |
+ * |                |       |                    |not enabled     |Pre-Operational     |Operational     |                |
+ * |                +-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |                |Action |Publish callback    |Publish callback|Publish callback    |Publish callback|Publish callback|
+ * |                |       |deregistered        |deregistered    |deregistered        |registered      |deregistered    |
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |DataSetWriter   |Trigger|Manual disable      |DSW enabled &&  |DSW enabled && WG   |DSW enabled &&  |Internal error  |
+ * |                |       |                    |WG is not       |Pre-Operational     |WG is           |                |
+ * |                |       |                    |enabled         |                    |Operational     |                |
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |ReaderGroup     |Trigger|Manual disable      |RG enabled &&   |RG enabled &&       |RG enabled &&   |Internal error  |
+ * |                |       |                    |PubSubConnection|(PubSubConnection   |PubSubConnection|                |
+ * |                |       |                    |not enabled     |Pre-Operational ||  |Operational &&  |                |
+ * |                |       |                    |                |RG-connection not   |RG-connection   |                |
+ * |                |       |                    |                |fully established)  |established     |                |
+ * |                +-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |                |Action |RG connection       |RG connection   |RG connection       |RG connection   |RG connection   |
+ * |                |       |disconnected        |disconnected    |connected           |connected       |disconnected    |
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ * |DataSetReader   |Trigger|Manual disable      |DSR enabled &&  |DSR enabled && RG   |DSR enabled &&  |Internal error  |
+ * |                |       |                    |RG not enabled  |Pre-Operational     |RG Operational  |                |
+ * +----------------+-------+--------------------+----------------+--------------------+----------------+----------------+
+ */
 
 _UA_BEGIN_DECLS
 
@@ -244,7 +247,8 @@ void
 UA_PubSubConnection_delete(UA_Server *server, UA_PubSubConnection *c);
 
 UA_StatusCode
-UA_PubSubConnection_connect(UA_Server *server, UA_PubSubConnection *c);
+UA_PubSubConnection_connect(UA_Server *server, UA_PubSubConnection *c,
+                            UA_Boolean validate);
 
 void
 UA_PubSubConnection_disconnect(UA_PubSubConnection *c);
@@ -288,12 +292,10 @@ UA_PubSubConnection_setPubSubState(UA_Server *server,
 /*              DataSetWriter                 */
 /**********************************************/
 
-#ifdef UA_ENABLE_PUBSUB_DELTAFRAMES
 typedef struct UA_DataSetWriterSample {
     UA_Boolean valueChanged;
     UA_DataValue value;
 } UA_DataSetWriterSample;
-#endif
 
 typedef struct UA_DataSetWriter {
     UA_PubSubComponentEnumType componentType;
@@ -304,11 +306,12 @@ typedef struct UA_DataSetWriter {
     UA_NodeId connectedDataSet;
     UA_ConfigurationVersionDataType connectedDataSetVersion;
     UA_PubSubState state;
-#ifdef UA_ENABLE_PUBSUB_DELTAFRAMES
+
+    /* Deltaframes */
     UA_UInt16 deltaFrameCounter; /* count of sent deltaFrames */
     size_t lastSamplesCount;
     UA_DataSetWriterSample *lastSamples;
-#endif
+
     UA_UInt16 actualDataSetMessageSequenceCount;
     UA_Boolean configurationFrozen;
     UA_UInt64  pubSubStateTimerId;
@@ -324,8 +327,7 @@ UA_DataSetWriter_findDSWbyId(UA_Server *server, UA_NodeId identifier);
 UA_StatusCode
 UA_DataSetWriter_setPubSubState(UA_Server *server,
                                 UA_DataSetWriter *dataSetWriter,
-                                UA_PubSubState state,
-                                UA_StatusCode cause);
+                                UA_PubSubState state);
 
 UA_StatusCode
 UA_DataSetWriter_generateDataSetMessage(UA_Server *server,
@@ -430,7 +432,11 @@ void
 UA_WriterGroup_disconnect(UA_WriterGroup *wg);
 
 UA_StatusCode
-UA_WriterGroup_connect(UA_Server *server, UA_WriterGroup *wg);
+UA_WriterGroup_connect(UA_Server *server, UA_WriterGroup *wg,
+                       UA_Boolean validate);
+
+UA_Boolean
+UA_WriterGroup_canConnect(UA_WriterGroup *wg);
 
 UA_StatusCode
 setWriterGroupEncryptionKeys(UA_Server *server, const UA_NodeId writerGroup,
@@ -455,8 +461,7 @@ UA_WriterGroup_unfreezeConfiguration(UA_Server *server, UA_WriterGroup *wg);
 UA_StatusCode
 UA_WriterGroup_setPubSubState(UA_Server *server,
                               UA_WriterGroup *writerGroup,
-                              UA_PubSubState state,
-                              UA_StatusCode cause);
+                              UA_PubSubState targetState);
 UA_StatusCode
 UA_WriterGroup_addPublishCallback(UA_Server *server, UA_WriterGroup *writerGroup);
 
@@ -543,7 +548,7 @@ typedef struct UA_DataSetReader {
     UA_NodeId linkedReaderGroup;
     LIST_ENTRY(UA_DataSetReader) listEntry;
 
-    UA_PubSubState state; /* non std */
+    UA_PubSubState state;
     UA_Boolean configurationFrozen;
     UA_NetworkMessageOffsetBuffer bufferedMessage;
 
@@ -592,11 +597,10 @@ DataSetReader_createTargetVariables(UA_Server *server, UA_DataSetReader *dsr,
                                     size_t targetVariablesSize,
                                     const UA_FieldTargetVariable *targetVariables);
 
+/* Returns an error reason if the target state is `Error` */
 UA_StatusCode
-UA_DataSetReader_setPubSubState(UA_Server *server,
-                                UA_DataSetReader *dataSetReader,
-                                UA_PubSubState state,
-                                UA_StatusCode cause);
+UA_DataSetReader_setPubSubState(UA_Server *server, UA_DataSetReader *dsr,
+                                UA_PubSubState targetState);
 
 #define UA_LOG_READER_INTERNAL(LOGGER, LEVEL, READER, MSG, ...)         \
     if(UA_LOGLEVEL <= UA_LOGLEVEL_##LEVEL) {                            \
@@ -643,6 +647,7 @@ struct UA_ReaderGroup {
 
     UA_PubSubState state;
     UA_Boolean configurationFrozen;
+    UA_Boolean hasReceived; /* Received a message since the last _connect */
 
     /* The ConnectionManager pointer is stored in the Connection. The channels 
      * are either stored here or in the Connection, but never both. */
@@ -670,7 +675,7 @@ UA_StatusCode
 UA_ReaderGroup_remove(UA_Server *server, UA_ReaderGroup *rg);
 
 UA_StatusCode
-UA_ReaderGroup_connect(UA_Server *server, UA_ReaderGroup *rg);
+UA_ReaderGroup_connect(UA_Server *server, UA_ReaderGroup *rg, UA_Boolean validate);
 
 void
 UA_ReaderGroup_disconnect(UA_ReaderGroup *rg);
@@ -701,10 +706,8 @@ UA_StatusCode
 UA_ReaderGroup_unfreezeConfiguration(UA_Server *server, UA_ReaderGroup *rg);
 
 UA_StatusCode
-UA_ReaderGroup_setPubSubState(UA_Server *server,
-                              UA_ReaderGroup *readerGroup,
-                              UA_PubSubState state,
-                              UA_StatusCode cause);
+UA_ReaderGroup_setPubSubState(UA_Server *server, UA_ReaderGroup *rg,
+                              UA_PubSubState targetState);
 
 UA_Boolean
 UA_ReaderGroup_decodeAndProcessRT(UA_Server *server, UA_ReaderGroup *readerGroup,
@@ -898,7 +901,7 @@ UA_Guid
 UA_PubSubManager_generateUniqueGuid(UA_Server *server);
 
 UA_UInt32
-UA_PubSubConfigurationVersionTimeDifference(void);
+UA_PubSubConfigurationVersionTimeDifference(UA_DateTime now);
 
 /*************************************************/
 /*      PubSub component monitoring              */
