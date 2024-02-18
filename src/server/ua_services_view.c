@@ -324,6 +324,7 @@ static void *
 browseRecursiveCallback(void *context, UA_ReferenceTarget *t) {
     struct BrowseRecursiveContext *brc =
         (struct BrowseRecursiveContext*)context;
+    void *res = NULL;
 
     /* Have we reached the max recursion depth? */
     if(brc->depth >= UA_MAX_TREE_RECURSE)
@@ -358,7 +359,6 @@ browseRecursiveCallback(void *context, UA_ReferenceTarget *t) {
 
     /* Recurse */
     brc->depth++;
-    void *res = NULL;
     for(size_t i = 0; i < head->referencesSize && !res; i++) {
         UA_NodeReferenceKind *rk = &head->references[i];
 

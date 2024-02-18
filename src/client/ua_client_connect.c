@@ -1536,6 +1536,9 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
     /* Take the client lock */
     UA_Client *client = (UA_Client*)application;
     UA_LOCK(&client->clientMutex);
+    UA_StatusCode res;
+    UA_DateTime nowMonotonic;
+    UA_EventLoop *el;
 
     UA_LOG_TRACE(client->config.logging, UA_LOGCATEGORY_CLIENT, "Client network callback");
 
@@ -1609,9 +1612,9 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
     }
 
     /* Received a message. Process the message with the SecureChannel. */
-    UA_EventLoop *el = client->config.eventLoop;
-    UA_DateTime nowMonotonic = el->dateTime_nowMonotonic(el);
-    UA_StatusCode res =
+    el = client->config.eventLoop;
+    nowMonotonic = el->dateTime_nowMonotonic(el);
+    res =
         UA_SecureChannel_processBuffer(&client->channel, client,
                                        processServiceResponse,
                                        &msg, nowMonotonic);

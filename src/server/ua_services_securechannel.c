@@ -22,7 +22,7 @@ Service_OpenSecureChannel(UA_Server *server, UA_SecureChannel *channel,
                           UA_OpenSecureChannelRequest *request,
                           UA_OpenSecureChannelResponse *response) {
     const UA_SecurityPolicy *sp = channel->securityPolicy;
-
+    UA_EventLoop *el;
     switch(request->requestType) {
     /* Open the channel */
     case UA_SECURITYTOKENREQUESTTYPE_ISSUE:
@@ -72,7 +72,7 @@ Service_OpenSecureChannel(UA_Server *server, UA_SecureChannel *channel,
 
     /* Create a new SecurityToken. It will be switched over when the first
      * message is received. The ChannelId is left unchanged. */
-    UA_EventLoop *el = server->config.eventLoop;
+    el = server->config.eventLoop;
     channel->altSecurityToken.channelId = channel->securityToken.channelId;
     channel->altSecurityToken.tokenId = generateSecureChannelTokenId(server);
     channel->altSecurityToken.createdAt = el->dateTime_nowMonotonic(el);

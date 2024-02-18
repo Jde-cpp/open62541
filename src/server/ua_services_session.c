@@ -708,7 +708,12 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
     const UA_UserTokenPolicy *utp = NULL;
     const UA_SecurityPolicy *tokenSp = NULL;
     UA_String *tmpLocaleIds;
-
+    UA_StatusCode res;
+    UA_SessionSecurityDiagnosticsDataType *ssd;
+    const UA_DataType *tokenType;
+    UA_DateTime now;
+    UA_DateTime nowMonotonic;
+    UA_EventLoop *el;
     /* Get the session */
     UA_Session *session = getSessionByToken(server, &req->requestHeader.authenticationToken);
     if(!session) {
@@ -732,8 +737,8 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
     }
 
     /* Has the session timed out? */
-    UA_EventLoop *el = server->config.eventLoop;
-    UA_DateTime nowMonotonic = el->dateTime_nowMonotonic(el);
+    el = server->config.eventLoop;
+    nowMonotonic = el->dateTime_nowMonotonic(el);
     if(session->validTill < nowMonotonic) {
         UA_LOG_WARNING_SESSION(server->config.logging, session,
                                "ActivateSession: The Session has timed out");
@@ -849,7 +854,7 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
 
     /* Update the Session lifetime */
     nowMonotonic = el->dateTime_nowMonotonic(el);
-    UA_DateTime now = el->dateTime_now(el);
+    now = el->dateTime_now(el);
     UA_Session_updateLifetime(session, now, nowMonotonic);
 
     /* Activate the session */
@@ -861,7 +866,7 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
 
     /* Store the ClientUserId. tokenType can be NULL for the anonymous user. */
     UA_String_clear(&session->clientUserIdOfSession);
-    const UA_DataType *tokenType = req->userIdentityToken.content.decoded.type;
+    tokenType = req->userIdentityToken.content.decoded.type;
     if(tokenType == &UA_TYPES[UA_TYPES_USERNAMEIDENTITYTOKEN]) {
         const UA_UserNameIdentityToken *userToken = (UA_UserNameIdentityToken*)
             req->userIdentityToken.content.decoded.data;
@@ -879,8 +884,8 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
 
 #ifdef UA_ENABLE_DIAGNOSTICS
     /* Add the ClientUserId to the diagnostics history */
-    UA_SessionSecurityDiagnosticsDataType *ssd = &session->securityDiagnostics;
-    UA_StatusCode res =
+    ssd = &session->securityDiagnostics;
+    res =
         UA_Array_appendCopy((void**)&ssd->clientUserIdHistory,
                             &ssd->clientUserIdHistorySize,
                             &ssd->clientUserIdOfSession,

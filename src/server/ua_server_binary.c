@@ -720,7 +720,9 @@ processMSGDecoded(UA_Server *server, UA_SecureChannel *channel, UA_UInt32 reques
     UA_Session *session = NULL;
     UA_StatusCode channelRes = UA_STATUSCODE_GOOD;
     UA_ResponseHeader *rh = &response->responseHeader;
-
+    UA_DateTime now;
+    UA_DateTime nowMonotonic;
+    UA_EventLoop *el = NULL;
     UA_LOCK(&server->serviceMutex);
 
     /* If it is an unencrypted (#None) channel, only allow the discovery services */
@@ -804,9 +806,9 @@ processMSGDecoded(UA_Server *server, UA_SecureChannel *channel, UA_UInt32 reques
     }
 
     /* Update the session lifetime */
-    UA_EventLoop *el = server->config.eventLoop;
-    UA_DateTime nowMonotonic = el->dateTime_nowMonotonic(el);
-    UA_DateTime now = el->dateTime_now(el);
+    el = server->config.eventLoop;
+    nowMonotonic = el->dateTime_nowMonotonic(el);
+    now = el->dateTime_now(el);
     UA_Session_updateLifetime(session, now, nowMonotonic);
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS

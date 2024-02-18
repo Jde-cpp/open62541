@@ -207,7 +207,7 @@ UA_EXPORT extern const UA_String UA_STRING_NULL;
  * ``UA_STRING_ALLOC`` is shorthand for ``UA_String_fromChars`` and makes a copy
  * of the char-array. */
 UA_INLINABLE(UA_String
-             UA_STRING(char *chars), {
+             UA_STRING(const char *chars), {
     UA_String s;
     memset(&s, 0, sizeof(s));
     if(!chars)
@@ -616,7 +616,7 @@ UA_UInt32 UA_EXPORT
 UA_QualifiedName_hash(const UA_QualifiedName *q);
 
 UA_INLINABLE(UA_QualifiedName
-             UA_QUALIFIEDNAME(UA_UInt16 nsIndex, char *chars), {
+             UA_QUALIFIEDNAME(UA_UInt16 nsIndex, const char *chars), {
     UA_QualifiedName qn;
     qn.namespaceIndex = nsIndex;
     qn.name = UA_STRING(chars);
@@ -641,7 +641,7 @@ typedef struct {
 } UA_LocalizedText;
 
 UA_INLINABLE(UA_LocalizedText
-             UA_LOCALIZEDTEXT(char *locale, char *text), {
+             UA_LOCALIZEDTEXT(const char *locale, const char *text), {
     UA_LocalizedText lt;
     lt.locale = UA_STRING(locale);
     lt.text = UA_STRING(text);

@@ -77,7 +77,6 @@ Makefile
 /exampleClient
 /exampleClient_legacy
 /src_generated/
-**/build
 /cmake-build*
 /tools/certs/certs/*
 Pipfile
@@ -93,4 +92,15 @@ debian/*
 .vim/
 asan/*
 debug/*
-
+build/*.user
+build/*.cmake
+build/*.txt
+build/.vs/**
+build/CMakeFiles/**
+build/debug/**
+build/release/**
+build/doc/**
+build/doc_src/**
+build/open62541*/**
+build/src_generated/**
+build/x64/**

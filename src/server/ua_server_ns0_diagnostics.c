@@ -13,7 +13,7 @@
 #ifdef UA_ENABLE_DIAGNOSTICS
 
 static UA_Boolean
-equalBrowseName(UA_String *bn, char *n) {
+equalBrowseName(UA_String *bn, const char *n) {
     UA_String name = UA_STRING(n);
     return UA_String_equal(bn, &name);
 }
@@ -199,6 +199,7 @@ createSubscriptionObject(UA_Server *server, UA_Session *session,
                                 refId, browseName, typeId, &var_attr,
                                 &UA_TYPES[UA_TYPES_VARIABLEATTRIBUTES], NULL,
                                 &sub->ns0Id);
+    UA_DataSource subDiagSource = {readSubscriptionDiagnostics, NULL};
     UA_CHECK_STATUS(res, goto cleanup);
 
     /* Add a second reference from the overall SubscriptionDiagnosticsArray variable */
@@ -219,7 +220,6 @@ createSubscriptionObject(UA_Server *server, UA_Session *session,
         goto cleanup;
 
     /* Add the callback to all variables  */
-    UA_DataSource subDiagSource = {readSubscriptionDiagnostics, NULL};
     for(size_t i = 0; i < childrenSize; i++) {
         setVariableNode_dataSource(server, children[i].nodeId, subDiagSource);
         setNodeContext(server, children[i].nodeId, sub);
@@ -501,6 +501,7 @@ createSessionObject(UA_Server *server, UA_Session *session) {
     UA_StatusCode res = addNode(server, UA_NODECLASS_OBJECT, session->sessionId,
                                 parentId, refId, browseName, typeId, &object_attr,
                                 &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES], NULL, NULL);
+    UA_DataSource sessionDiagSource = {readSessionDiagnostics, NULL};
     if(res != UA_STATUSCODE_GOOD)
         goto cleanup;
 
@@ -515,7 +516,6 @@ createSessionObject(UA_Server *server, UA_Session *session) {
         goto cleanup;
 
     /* Add the callback to all variables  */
-    UA_DataSource sessionDiagSource = {readSessionDiagnostics, NULL};
     for(size_t i = 0; i < childrenSize; i++) {
         setVariableNode_dataSource(server, children[i].nodeId, sessionDiagSource);
     }
