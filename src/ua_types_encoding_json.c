@@ -9,7 +9,7 @@
 #include <open62541/config.h>
 #include <open62541/types_generated.h>
 #include <open62541/types_generated_handling.h>
-
+#include <malloc.h>
 #ifdef UA_ENABLE_JSON_ENCODING
 
 #include "ua_types_encoding_json.h"
@@ -2532,7 +2532,7 @@ static status
 Variant_decodeJsonUnwrapExtensionObject(ParseCtx *ctx, void *p, const UA_DataType *type) {
     (void) type;
     UA_Variant *dst = (UA_Variant*)p;
-
+    UA_Boolean isBuiltin;
     /* ExtensionObject with null body */
     if(currentTokenType(ctx) == CJ5_TOKEN_NULL) {
         dst->data = UA_ExtensionObject_new();
@@ -2559,7 +2559,7 @@ Variant_decodeJsonUnwrapExtensionObject(ParseCtx *ctx, void *p, const UA_DataTyp
      * means for us, that somebody made an extra effort to explicitly get an
      * ExtensionObject. So we keep it. As an added advantage we will generate
      * the same JSON again when encoding again. */
-    UA_Boolean isBuiltin =
+    isBuiltin =
         (eo.content.decoded.type->typeKind <= UA_DATATYPEKIND_DIAGNOSTICINFO);
     if(isBuiltin)
         goto use_eo;

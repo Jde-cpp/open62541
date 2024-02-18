@@ -22,7 +22,7 @@
 #include "ua_server_internal.h"
 #include "ua_types_encoding_binary.h"
 #include "ua_services.h"
-
+#include "inttypes.h"
 #ifdef UA_ENABLE_HISTORIZING
 #include <open62541/plugin/historydatabase.h>
 #endif
@@ -387,9 +387,12 @@ void
 ReadWithNode(const UA_Node *node, UA_Server *server, UA_Session *session,
              UA_TimestampsToReturn timestampsToReturn,
              const UA_ReadValueId *id, UA_DataValue *v) {
+    UA_Byte userAccessLevel;
+    UA_UInt32 accessLevelEx; 
+    UA_Byte accessLevel;
     UA_LOG_NODEID_TRACE(&node->head.nodeId,
                         UA_LOG_TRACE_SESSION(server->config.logging, session,
-                                             "Read attribute %"PRIi32 " of Node %.*s",
+                                             "Read attribute %" "i" " of Node %.*s",
                                              id->attributeId, (int)nodeIdStr.length,
                                              nodeIdStr.data));
 
@@ -488,7 +491,7 @@ ReadWithNode(const UA_Node *node, UA_Server *server, UA_Session *session,
         if(node->head.nodeClass == UA_NODECLASS_VARIABLE) {
             /* The access to a value variable is granted via the AccessLevel
              * and UserAccessLevel attributes */
-            UA_Byte accessLevel = getAccessLevel(server, session, &node->variableNode);
+            accessLevel = getAccessLevel(server, session, &node->variableNode);
             if(!(accessLevel & (UA_ACCESSLEVELMASK_READ))) {
                 retval = UA_STATUSCODE_BADNOTREADABLE;
                 break;
@@ -528,15 +531,15 @@ ReadWithNode(const UA_Node *node, UA_Server *server, UA_Session *session,
         CHECK_NODECLASS(UA_NODECLASS_VARIABLE);
         /* The normal AccessLevelEx contains the lowest 8 bits from the normal AccessLevel.
          * In our case, all other bits are zero. */
-        const UA_Byte accessLevel = *((const UA_Byte*)(&node->variableNode.accessLevel));
-        UA_UInt32 accessLevelEx = accessLevel & 0xFF;
+        accessLevel = *((const UA_Byte*)(&node->variableNode.accessLevel));
+        accessLevelEx = accessLevel & 0xFF;
         retval = UA_Variant_setScalarCopy(&v->value, &accessLevelEx,
                                           &UA_TYPES[UA_TYPES_UINT32]);
 
         break;
     case UA_ATTRIBUTEID_USERACCESSLEVEL: {
         CHECK_NODECLASS(UA_NODECLASS_VARIABLE);
-        UA_Byte userAccessLevel = getUserAccessLevel(server, session, &node->variableNode);
+        userAccessLevel = getUserAccessLevel(server, session, &node->variableNode);
         retval = UA_Variant_setScalarCopy(&v->value, &userAccessLevel,
                                           &UA_TYPES[UA_TYPES_BYTE]);
         break; }

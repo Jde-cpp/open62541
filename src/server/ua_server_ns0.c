@@ -21,7 +21,7 @@
 
 static UA_StatusCode
 ns0_addNode_raw(UA_Server *server, UA_NodeClass nodeClass,
-            UA_UInt32 nodeId, char *name, void *attributes,
+            UA_UInt32 nodeId, const char *name, void *attributes,
             const UA_DataType *attributesType) {
     UA_AddNodesItem item;
     UA_AddNodesItem_init(&item);
@@ -46,7 +46,7 @@ ns0_addNode_finish(UA_Server *server, UA_UInt32 nodeId,
 }
 
 static UA_StatusCode
-addObjectNode(UA_Server *server, char* name, UA_UInt32 objectid,
+addObjectNode(UA_Server *server, const char* name, UA_UInt32 objectid,
               UA_UInt32 parentid, UA_UInt32 referenceid, UA_UInt32 type_id) {
     UA_ObjectAttributes object_attr = UA_ObjectAttributes_default;
     object_attr.displayName = UA_LOCALIZEDTEXT("", name);
@@ -58,7 +58,7 @@ addObjectNode(UA_Server *server, char* name, UA_UInt32 objectid,
 }
 
 static UA_StatusCode
-addReferenceTypeNode(UA_Server *server, char* name, char *inverseName, UA_UInt32 referencetypeid,
+addReferenceTypeNode(UA_Server *server, const char* name, const char *inverseName, UA_UInt32 referencetypeid,
                      UA_Boolean isabstract, UA_Boolean symmetric, UA_UInt32 parentid) {
     UA_ReferenceTypeAttributes reference_attr = UA_ReferenceTypeAttributes_default;
     reference_attr.displayName = UA_LOCALIZEDTEXT("", name);

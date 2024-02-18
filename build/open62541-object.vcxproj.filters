@@ -1,0 +1,387 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_types.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_types_encoding_binary.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\types_generated.c">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\transport_generated.c">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\statuscodes.c">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\util\ua_util.c">
+      <Filter>src\util</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\util\ua_clock.c">
+      <Filter>src\util</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_securechannel.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_securechannel_crypto.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_session.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_nodes.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_ns0.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_ns0_diagnostics.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_config.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_binary.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_utils.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_async.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_view.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_method.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_session.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_attribute.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_discovery.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_subscription.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_monitoreditem.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_securechannel.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services_nodemanagement.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_networkmessage.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_eventloop.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_connection.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_dataset.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_writer.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_writergroup.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_reader.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_readergroup.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_manager.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_ns0.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_keystorage.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_securitygroup.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_config.c">
+      <Filter>src\pubsub</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\client\ua_client.c">
+      <Filter>src\client</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\client\ua_client_connect.c">
+      <Filter>src\client</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\client\ua_client_discovery.c">
+      <Filter>src\client</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\client\ua_client_highlevel.c">
+      <Filter>src\client</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\client\ua_client_subscriptions.c">
+      <Filter>src\client</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\libc_time.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\pcg_basic.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\base64.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\dtoa.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\mp_printf.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\itoa.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\ziptree.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\namespace0_generated.c">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\util\ua_types_lex.c">
+      <Filter>src\util</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\cj5.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\parse_num.c">
+      <Filter>deps</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_types_encoding_json.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_subscription.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_subscription_monitoreditem.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_subscription_datachange.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_subscription_events.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_subscription_events_filter.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_discovery.c">
+      <Filter>src\server</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\open62541_queue.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\pcg_basic.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\libc_time.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\base64.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\dtoa.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\mp_printf.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\itoa.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\ziptree.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_types_encoding_binary.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\util\ua_util_internal.h">
+      <Filter>src\util</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\transport_generated.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\transport_generated_handling.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_securechannel.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_session.h">
+      <Filter>src\server</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_subscription.h">
+      <Filter>src\server</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_networkmessage.h">
+      <Filter>src\pubsub</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub.h">
+      <Filter>src\pubsub</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_ns0.h">
+      <Filter>src\pubsub</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\pubsub\ua_pubsub_keystorage.h">
+      <Filter>src\pubsub</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_async.h">
+      <Filter>src\server</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_server_internal.h">
+      <Filter>src\server</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_services.h">
+      <Filter>src\server</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\client\ua_client_internal.h">
+      <Filter>src\client</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\namespace0_generated.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\cj5.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\deps\parse_num.h">
+      <Filter>deps</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\ua_types_encoding_json.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\src\server\ua_discovery.h">
+      <Filter>src\server</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\config.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\statuscodes.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\nodeids.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\common.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\types.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\types_generated.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\types_generated_handling.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\util.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\log.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\accesscontrol.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\pki.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\securitypolicy.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\eventloop.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\nodestore.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\historydatabase.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\server_pubsub.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\server.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client_highlevel.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client_subscriptions.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client_highlevel_async.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\duffyj\source\repos\libraries\open62541\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{62D09FAD-620E-3FE1-AF56-C6CA3FF53D8E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="build">
+      <UniqueIdentifier>{70F60154-0FF2-3ABA-B142-21842A1A73A3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="build\src_generated">
+      <UniqueIdentifier>{C8EBA33C-C1CC-3C18-AD04-DF85F692F4E2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="build\src_generated\open62541">
+      <UniqueIdentifier>{7DB5DF49-3289-370D-B62F-B85602A34DC4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps">
+      <UniqueIdentifier>{B2FA19F9-AB97-3156-810E-E91F28558721}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{48DED11B-C9BB-3B13-8FC3-D43CC85E6461}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\open62541">
+      <UniqueIdentifier>{CD24359E-B752-3FC0-B1FF-74F95E56887D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\open62541\plugin">
+      <UniqueIdentifier>{808384D9-3CF3-303D-95BF-1C45D21D36F9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{91E1EA42-A270-334F-9674-F875C3AFCE09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\client">
+      <UniqueIdentifier>{EA430BA0-115F-33DB-8F87-8E5A82753672}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\pubsub">
+      <UniqueIdentifier>{2D111DA4-9E17-321A-82A3-A7B7AB5F0C3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\server">
+      <UniqueIdentifier>{4FE6C25A-6CDB-36E2-9810-161005945E25}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\util">
+      <UniqueIdentifier>{8BC442B9-869D-3B70-AA4A-865A4A023864}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

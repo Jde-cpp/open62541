@@ -1,0 +1,189 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_log_stdout.c">
+      <Filter>plugins</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_accesscontrol_default.c">
+      <Filter>plugins</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_nodestore_ziptree.c">
+      <Filter>plugins</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_nodestore_hashmap.c">
+      <Filter>plugins</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_config_default.c">
+      <Filter>plugins</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\ua_pki_none.c">
+      <Filter>plugins\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\ua_securitypolicy_none.c">
+      <Filter>plugins\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_timer.c">
+      <Filter>plugins\eventloop</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_common.c">
+      <Filter>plugins\eventloop</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_select.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_epoll.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_tcp.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_udp.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_eth.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_interrupt.c">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_mqtt.c">
+      <Filter>plugins\eventloop</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_config_json.c">
+      <Filter>plugins</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\historydata\ua_history_data_backend_memory.c">
+      <Filter>plugins\historydata</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\historydata\ua_history_data_gathering_default.c">
+      <Filter>plugins\historydata</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\historydata\ua_history_database_default.c">
+      <Filter>plugins\historydata</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_timer.h">
+      <Filter>plugins\eventloop</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_common.h">
+      <Filter>plugins\eventloop</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix.h">
+      <Filter>plugins\eventloop\posix</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\config.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\statuscodes.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\nodeids.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\common.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\types.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\types_generated.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\types_generated_handling.h">
+      <Filter>build\src_generated\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\util.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\log.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\accesscontrol.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\pki.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\securitypolicy.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\eventloop.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\nodestore.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\historydatabase.h">
+      <Filter>include\open62541\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\server_pubsub.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\server.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client_highlevel.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client_subscriptions.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\client_highlevel_async.h">
+      <Filter>include\open62541</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\duffyj\source\repos\libraries\open62541\build\CMakeFiles\041dc05425f0ee84cb7cd36f6ea8d51b\statuscodes.h.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\duffyj\source\repos\libraries\open62541\build\CMakeFiles\041dc05425f0ee84cb7cd36f6ea8d51b\nodeids.h.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\duffyj\source\repos\libraries\open62541\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{62D09FAD-620E-3FE1-AF56-C6CA3FF53D8E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="build">
+      <UniqueIdentifier>{70F60154-0FF2-3ABA-B142-21842A1A73A3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="build\src_generated">
+      <UniqueIdentifier>{C8EBA33C-C1CC-3C18-AD04-DF85F692F4E2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="build\src_generated\open62541">
+      <UniqueIdentifier>{7DB5DF49-3289-370D-B62F-B85602A34DC4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{48DED11B-C9BB-3B13-8FC3-D43CC85E6461}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\open62541">
+      <UniqueIdentifier>{CD24359E-B752-3FC0-B1FF-74F95E56887D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\open62541\plugin">
+      <UniqueIdentifier>{808384D9-3CF3-303D-95BF-1C45D21D36F9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="plugins">
+      <UniqueIdentifier>{17A16FB7-8137-359A-875D-CAD475A1701C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="plugins\crypto">
+      <UniqueIdentifier>{4AA4C68E-70ED-3798-936C-6D05B6961BC7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="plugins\eventloop">
+      <UniqueIdentifier>{D845B440-59D5-3018-B61B-B8FFE6BBEF1E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="plugins\eventloop\posix">
+      <UniqueIdentifier>{F1F74BE7-A0E6-3DA6-9568-0F38F53305BD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="plugins\historydata">
+      <UniqueIdentifier>{ACB53063-2098-3806-8902-CD49B3904729}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
