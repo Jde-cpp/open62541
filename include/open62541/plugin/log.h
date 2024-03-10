@@ -57,7 +57,7 @@ typedef struct {
      * according to the rules of the printf command. Use the convenience macros
      * below that take the minimum log level defined in ua_config.h into
      * account. */
-    void (*log)(void *logContext, UA_LogLevel level, UA_LogCategory category, const char* file, const char* function, uint_least32_t line,
+    void (*log)(void *logContext, UA_LogLevel level, UA_LogCategory category, const char* file, const char* function, uint32_t line,
                 const char *msg, va_list args);
 
     void *context; /* Logger state */
@@ -68,7 +68,7 @@ typedef struct {
 
 #define UA_SOURCE_LOCATION 1
 #ifdef UA_SOURCE_LOCATION
-static inline void Log( const UA_Logger *logger, UA_LogLevel level, UA_LogCategory category, const char* file, const char* function, uint_least32_t line, const char *msg, ... )
+static inline void Log( const UA_Logger *logger, UA_LogLevel level, UA_LogCategory category, const char* file, const char* function, uint32_t line, const char *msg, ... )
 {
     va_list args; va_start( args, msg );
     //va_list args2; va_copy( args2, args );
