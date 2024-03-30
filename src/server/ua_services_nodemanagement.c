@@ -2636,7 +2636,7 @@ UA_Server_addMethodNodeEx_finish(UA_Server *server, const UA_NodeId nodeId,
     /* Add the Input Arguments VariableNode */
     if(inputArgumentsSize > 0 && UA_NodeId_isNull(&inputArgsId)) {
         UA_VariableAttributes attr = UA_VariableAttributes_default;
-        char *name = "InputArguments";
+        const char *name = "InputArguments";
         attr.displayName = UA_LOCALIZEDTEXT("", name);
         attr.dataType = UA_TYPES[UA_TYPES_ARGUMENT].typeId;
         attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
@@ -2656,7 +2656,7 @@ UA_Server_addMethodNodeEx_finish(UA_Server *server, const UA_NodeId nodeId,
     /* Add the Output Arguments VariableNode */
     if(outputArgumentsSize > 0 && UA_NodeId_isNull(&outputArgsId)) {
         UA_VariableAttributes attr = UA_VariableAttributes_default;
-        char *name = "OutputArguments";
+        const char *name = "OutputArguments";
         attr.displayName = UA_LOCALIZEDTEXT("", name);
         attr.dataType = UA_TYPES[UA_TYPES_ARGUMENT].typeId;
         attr.valueRank = UA_VALUERANK_ONE_DIMENSION;

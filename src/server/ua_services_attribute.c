@@ -1645,7 +1645,7 @@ copyAttributeIntoNode(UA_Server *server, UA_Session *session,
 
     UA_LOG_NODEID_TRACE(&node->head.nodeId,
                         UA_LOG_TRACE_SESSION(server->config.logging, session,
-                                             "Write attribute %"PRIi32 " of Node %.*s",
+                                             "Write attribute %i of Node %.*s",
                                              wvalue->attributeId, (int)nodeIdStr.length,
                                              nodeIdStr.data));
 

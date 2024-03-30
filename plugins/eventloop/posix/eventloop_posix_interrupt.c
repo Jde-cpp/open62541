@@ -398,7 +398,7 @@ startPOSIXInterruptManager(UA_EventSource *es) {
     }
 
 #ifndef UA_HAVE_EPOLL
-    UA_EventLoopPOSIX *el = (UA_EventLoopPOSIX *)es->eventLoop;
+    //UA_EventLoopPOSIX *el = (UA_EventLoopPOSIX *)es->eventLoop;
     /* Set the global pointer */
     if(singletonIM != NULL) {
         UA_LOG_ERROR(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
