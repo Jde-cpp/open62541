@@ -1218,7 +1218,7 @@ __Client_Subscriptions_processPublishResponse(UA_Client *client, UA_PublishReque
     if(response->responseHeader.serviceResult == UA_STATUSCODE_BADSHUTDOWN)
         return;
 
-    if(response->responseHeader.serviceResult == UA_STATUSCODE_BADNOSUBSCRIPTION) 
+    if(response->responseHeader.serviceResult == UA_STATUSCODE_BADNOSUBSCRIPTION)
     {
         UA_LOG_WARNING(client->config.logging, UA_LOGCATEGORY_CLIENT,
                        "Received BadNoSubscription, delete internal information about subscription");

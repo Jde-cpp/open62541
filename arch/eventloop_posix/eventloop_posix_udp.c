@@ -1165,7 +1165,7 @@ UDP_eventSourceStart(UA_ConnectionManager *cm) {
     /* Check the state */
     if(cm->eventSource.state != UA_EVENTSOURCESTATE_STOPPED) {
         UA_LOG_ERROR(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
-                     "UDP\t| To start the ConnectionManager, "
+                     "To start the UDP ConnectionManager, "
                      "it has to be registered in an EventLoop and not started");
         UA_UNLOCK(&el->elMutex);
         return UA_STATUSCODE_BADINTERNALERROR;

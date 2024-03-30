@@ -751,8 +751,8 @@ TCP_openActiveConnection(UA_POSIXConnectionManager *pcm, const UA_KeyValueMap *p
     const UA_UInt16 *port = (const UA_UInt16*)
         UA_KeyValueMap_getScalar(params, tcpConnectionParams[TCP_PARAMINDEX_PORT].name,
                                  &UA_TYPES[UA_TYPES_UINT16]);
-    UA_assert(port); /* existence is checked before */
-    mp_snprintf(portStr, UA_MAXPORTSTR_LENGTH, "%d", *port);
+		UA_assert(port); /* existence is checked before */
+    mp_snprintf(portStr, 6, "%d", *port);
 
     /* Prepare the hostname string */
     const UA_String *addr = (const UA_String*)
@@ -763,7 +763,7 @@ TCP_openActiveConnection(UA_POSIXConnectionManager *pcm, const UA_KeyValueMap *p
                      "TCP\t| Open TCP Connection: No hostname defined, aborting");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
-    if(addr->length >= UA_MAXHOSTNAME_LENGTH) {
+    if(addr->length >= 256) {
         UA_LOG_ERROR(el->eventLoop.logger, UA_LOGCATEGORY_EVENTLOOP,
                      "TCP\t| Open TCP Connection: Hostname too long, aborting");
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -957,7 +957,7 @@ TCP_eventSourceStart(UA_ConnectionManager *cm) {
     /* Check the state */
     if(cm->eventSource.state != UA_EVENTSOURCESTATE_STOPPED) {
         UA_LOG_ERROR(el->eventLoop.logger, UA_LOGCATEGORY_NETWORK,
-                     "TCP\t| To start the ConnectionManager, it has to be "
+                     "To start the TCP ConnectionManager, it has to be "
                      "registered in an EventLoop and not started yet");
         UA_UNLOCK(&el->elMutex); //UA_LOG_DEBUG( el->eventLoop.logger, UA_LOGCATEGORY_NETWORK, "(%zx)~lock", (size_t)&el->elMutex );
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -997,7 +997,7 @@ TCP_eventSourceStop(UA_ConnectionManager *cm) {
     UA_EventLoopPOSIX *el = (UA_EventLoopPOSIX*)cm->eventSource.eventLoop;
     (void)el;
 
-    UA_LOCK(&el->elMutex);
+    UA_LOCK(&el->elMutex); //UA_LOG_DEBUG( el->eventLoop.logger, UA_LOGCATEGORY_NETWORK, "(%zx)lock", (size_t)&el->elMutex );
 
     UA_LOG_INFO(cm->eventSource.eventLoop->logger, UA_LOGCATEGORY_NETWORK,
                 "TCP\t| Shutting down the ConnectionManager");

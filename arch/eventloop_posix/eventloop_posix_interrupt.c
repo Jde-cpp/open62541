@@ -397,8 +397,6 @@ startPOSIXInterruptManager(UA_EventSource *es) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
-<<<<<<< HEAD:arch/eventloop_posix/eventloop_posix_interrupt.c
-=======
 #ifndef UA_HAVE_EPOLL
     //UA_EventLoopPOSIX *el = (UA_EventLoopPOSIX *)es->eventLoop;
     /* Set the global pointer */
@@ -410,7 +408,6 @@ startPOSIXInterruptManager(UA_EventSource *es) {
     }
 #endif
 
->>>>>>> a37511560 (c++20):arch/eventloop_posix_interrupt.c
     UA_POSIXInterruptManager *pim = (UA_POSIXInterruptManager *)es;
     UA_LOG_DEBUG(es->eventLoop->logger, UA_LOGCATEGORY_EVENTLOOP,
                  "Interrupt\t| Starting the InterruptManager");
