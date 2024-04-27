@@ -97,15 +97,5 @@ Pipfile.lock
 .vim/
 asan/*
 debug/*
-build/*.user
-build/*.cmake
-build/*.txt
-build/.vs/**
-build/CMakeFiles/**
-build/debug/**
-build/release/**
-build/doc/**
-build/doc_src/**
-build/open62541*/**
-build/src_generated/**
-build/x64/**
+build/**
+

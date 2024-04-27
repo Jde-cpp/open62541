@@ -22,9 +22,6 @@
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_util.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_clock.obj">
-      <Filter>Object Libraries</Filter>
-    </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_securechannel.obj">
       <Filter>Object Libraries</Filter>
     </Object>
@@ -56,6 +53,9 @@
       <Filter>Object Libraries</Filter>
     </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_server_async.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_services.obj">
       <Filter>Object Libraries</Filter>
     </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_services_view.obj">
@@ -166,6 +166,12 @@
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_types_lex.obj">
       <Filter>Object Libraries</Filter>
     </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_eventfilter_parser.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\ua_eventfilter_grammar.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-object.dir\$(Configuration)\cj5.obj">
       <Filter>Object Libraries</Filter>
     </Object>
@@ -208,25 +214,31 @@
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_config_default.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_pki_none.obj">
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_certificategroup_none.obj">
       <Filter>Object Libraries</Filter>
     </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_securitypolicy_none.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\eventloop_timer.obj">
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\clock.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\eventloop_common.obj">
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\arch\eventloop_common\timer.h.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\eventloop_posix.obj">
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\arch\eventloop_common\timer.c.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\eventloop_posix_select.obj">
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\arch\eventloop_common\eventloop_common.h.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\eventloop_posix_epoll.obj">
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\arch\eventloop_common\eventloop_common.c.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\arch\eventloop_posix\eventloop_posix.h.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\arch\eventloop_posix\eventloop_posix.c.obj">
       <Filter>Object Libraries</Filter>
     </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\eventloop_posix_tcp.obj">
@@ -254,6 +266,36 @@
       <Filter>Object Libraries</Filter>
     </Object>
     <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_history_database_default.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\plugins\crypto\openssl\securitypolicy_openssl_common.h.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_version_abstraction.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\plugins\crypto\openssl\securitypolicy_openssl_common.c.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_basic128rsa15.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_basic256.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_basic256sha256.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_aes128sha256rsaoaep.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_aes256sha256rsapss.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_openssl_create_certificate.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\duffyj\source\repos\libraries\open62541\build\open62541-plugins.dir\$(Configuration)\ua_certificategroup_openssl.obj">
       <Filter>Object Libraries</Filter>
     </Object>
   </ItemGroup>

@@ -72,7 +72,7 @@ UA_String_chr(const UA_String *pUaStr, char needl) {
 
 /* char *value cannot be const due to openssl 1.0 compatibility */
 static UA_StatusCode
-add_x509V3ext(const UA_Logger *logger, X509 *x509, int nid, char *value) {
+add_x509V3ext(const UA_Logger *logger, X509 *x509, int nid, const char *value) {
     X509_EXTENSION *ex;
     X509V3_CTX ctx;
     X509V3_set_ctx_nodb(&ctx);
@@ -117,6 +117,7 @@ UA_CreateCertificate(const UA_Logger *logger, const UA_String *subject,
        (certFormat != UA_CERTIFICATEFORMAT_DER && certFormat != UA_CERTIFICATEFORMAT_PEM))
         return UA_STATUSCODE_BADINVALIDARGUMENT;
 
+    X509_NAME *name;
     /* Use the maximum size */
     UA_UInt16 keySizeBits = 4096;
     /* Default to 1 year */
@@ -231,7 +232,7 @@ UA_CreateCertificate(const UA_Logger *logger, const UA_String *subject,
         goto cleanup;
     }
 
-    X509_NAME *name = X509_get_subject_name(x509);
+    name = X509_get_subject_name(x509);
     if(name == NULL) {
         UA_LOG_ERROR(logger, UA_LOGCATEGORY_SECURECHANNEL,
                      "Create Certificate: Getting name failed.");

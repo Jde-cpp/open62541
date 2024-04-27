@@ -16,41 +16,47 @@
     <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_config_default.c">
       <Filter>plugins</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\ua_pki_none.c">
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\ua_certificategroup_none.c">
       <Filter>plugins\crypto</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\ua_securitypolicy_none.c">
       <Filter>plugins\crypto</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_timer.c">
-      <Filter>plugins\eventloop</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\clock.c">
+      <Filter>arch</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_common.c">
-      <Filter>plugins\eventloop</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_common\timer.h">
+      <Filter>arch\eventloop_common</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_common\timer.c">
+      <Filter>arch\eventloop_common</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_select.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_common\eventloop_common.h">
+      <Filter>arch\eventloop_common</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_epoll.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_common\eventloop_common.c">
+      <Filter>arch\eventloop_common</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_tcp.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_posix\eventloop_posix.h">
+      <Filter>arch\eventloop_posix</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_udp.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_posix\eventloop_posix.c">
+      <Filter>arch\eventloop_posix</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_eth.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_posix\eventloop_posix_tcp.c">
+      <Filter>arch\eventloop_posix</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix_interrupt.c">
-      <Filter>plugins\eventloop\posix</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_posix\eventloop_posix_udp.c">
+      <Filter>arch\eventloop_posix</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_mqtt.c">
-      <Filter>plugins\eventloop</Filter>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_posix\eventloop_posix_eth.c">
+      <Filter>arch\eventloop_posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_posix\eventloop_posix_interrupt.c">
+      <Filter>arch\eventloop_posix</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\arch\eventloop_common\eventloop_mqtt.c">
+      <Filter>arch\eventloop_common</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\ua_config_json.c">
       <Filter>plugins</Filter>
@@ -64,17 +70,38 @@
     <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\historydata\ua_history_database_default.c">
       <Filter>plugins\historydata</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\securitypolicy_openssl_common.h">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_version_abstraction.h">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\securitypolicy_openssl_common.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_basic128rsa15.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_basic256.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_basic256sha256.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_aes128sha256rsaoaep.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_aes256sha256rsapss.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_openssl_create_certificate.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\crypto\openssl\ua_certificategroup_openssl.c">
+      <Filter>plugins\crypto\openssl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_timer.h">
-      <Filter>plugins\eventloop</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\eventloop_common.h">
-      <Filter>plugins\eventloop</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\plugins\eventloop\posix\eventloop_posix.h">
-      <Filter>plugins\eventloop\posix</Filter>
-    </ClInclude>
     <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\build\src_generated\open62541\config.h">
       <Filter>build\src_generated\open62541</Filter>
     </ClInclude>
@@ -105,7 +132,7 @@
     <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\accesscontrol.h">
       <Filter>include\open62541\plugin</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\pki.h">
+    <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\certificategroup.h">
       <Filter>include\open62541\plugin</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\duffyj\source\repos\libraries\open62541\include\open62541\plugin\securitypolicy.h">
@@ -152,6 +179,15 @@
     <Filter Include="CMake Rules">
       <UniqueIdentifier>{62D09FAD-620E-3FE1-AF56-C6CA3FF53D8E}</UniqueIdentifier>
     </Filter>
+    <Filter Include="arch">
+      <UniqueIdentifier>{B9B31512-C4AB-3045-ABDA-7901CF777BD9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="arch\eventloop_common">
+      <UniqueIdentifier>{CE0056E1-4FDD-3D7F-9325-320E1164D8C5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="arch\eventloop_posix">
+      <UniqueIdentifier>{79345F0A-DF1E-35AB-BB02-B6E7A77373E6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="build">
       <UniqueIdentifier>{70F60154-0FF2-3ABA-B142-21842A1A73A3}</UniqueIdentifier>
     </Filter>
@@ -176,11 +212,8 @@
     <Filter Include="plugins\crypto">
       <UniqueIdentifier>{4AA4C68E-70ED-3798-936C-6D05B6961BC7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="plugins\eventloop">
-      <UniqueIdentifier>{D845B440-59D5-3018-B61B-B8FFE6BBEF1E}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="plugins\eventloop\posix">
-      <UniqueIdentifier>{F1F74BE7-A0E6-3DA6-9568-0F38F53305BD}</UniqueIdentifier>
+    <Filter Include="plugins\crypto\openssl">
+      <UniqueIdentifier>{1160F32E-A4B3-3B43-9C47-0FB8E9999ED5}</UniqueIdentifier>
     </Filter>
     <Filter Include="plugins\historydata">
       <UniqueIdentifier>{ACB53063-2098-3806-8902-CD49B3904729}</UniqueIdentifier>

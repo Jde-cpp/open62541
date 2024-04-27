@@ -112,7 +112,7 @@ UA_OpenSSL_RSA_Public_Verify(const UA_ByteString *message,
     EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
     if(!mdctx)
         return UA_STATUSCODE_BADOUTOFMEMORY;
-
+    int opensslRet; 
     UA_StatusCode ret = UA_STATUSCODE_GOOD;
     EVP_PKEY *evpPublicKey = X509_get_pubkey(publicKeyX509);
     if(!evpPublicKey) {
@@ -121,7 +121,7 @@ UA_OpenSSL_RSA_Public_Verify(const UA_ByteString *message,
     }
 
     EVP_PKEY_CTX *evpKeyCtx;
-    int opensslRet = EVP_DigestVerifyInit(mdctx, &evpKeyCtx, evpMd,
+    opensslRet = EVP_DigestVerifyInit(mdctx, &evpKeyCtx, evpMd,
                                           NULL, evpPublicKey);
     if(opensslRet != 1) {
         ret = UA_STATUSCODE_BADINTERNALERROR;

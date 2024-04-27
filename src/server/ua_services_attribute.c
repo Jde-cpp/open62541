@@ -1207,11 +1207,7 @@ writeArrayDimensionsAttribute(UA_Server *server, UA_Session *session,
      * when we do the change */
     if(node->head.nodeClass == UA_NODECLASS_VARIABLETYPE &&
        UA_Node_hasSubTypeOrInstances(&node->head)) {
-<<<<<<< HEAD
         UA_LOG_INFO(server->config.logging, UA_LOGCATEGORY_SERVER,
-=======
-        UA_LOG_INFO(&server->config.logger, UA_LOGCATEGORY_SERVER,
->>>>>>> a37511560 (c++20)
                     "Cannot change a variable type with existing instances");
         return UA_STATUSCODE_BADINTERNALERROR;
     }

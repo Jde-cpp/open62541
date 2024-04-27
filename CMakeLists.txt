@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.1...3.12)
-if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ OR UA_BUILD_FUZZING_CORPUS)
+#if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ OR UA_BUILD_FUZZING_CORPUS)
     project(open62541) # We need to have C++ support configured for fuzzing
-else()
-    project(open62541 C) # Do not look for a C++ compiler
-endif()
+#else()
+#    project(open62541 C) # Do not look for a C++ compiler
+#endif()
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
@@ -22,6 +22,9 @@ find_package(Git)
 include(AssignSourceGroup)
 include(GNUInstallDirs)
 include(macros_public)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor" )
 message(CXX_FLAGS=${CMAKE_CXX_FLAGS})
 #############################
 # Compiled binaries folders #
@@ -1045,6 +1048,7 @@ list(INSERT plugin_sources 0
 endif()
 
 if(UA_ENABLE_ENCRYPTION_OPENSSL OR UA_ENABLE_ENCRYPTION_LIBRESSL OR UA_ENABLE_AMALGAMATION)
+message("hi")
 list(APPEND plugin_sources
      ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/securitypolicy_openssl_common.h
      ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_version_abstraction.h
@@ -1056,6 +1060,8 @@ list(APPEND plugin_sources
      ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_aes256sha256rsapss.c
      ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_openssl_create_certificate.c
      ${PROJECT_SOURCE_DIR}/plugins/crypto/openssl/ua_certificategroup_openssl.c)
+else()
+	message("ixnay")		 
 endif()
 
 if(UA_ENABLE_DISCOVERY)
@@ -1281,7 +1287,10 @@ if(UA_ENABLE_AMALGAMATION)
     add_dependencies(open62541-amalgamation-source open62541-generator-namespace)
     add_dependencies(open62541-amalgamation-header open62541-generator-namespace)
 else()
-    add_library(open62541-object OBJECT ${lib_sources} ${lib_headers} ${exported_headers})
+		if(MSVC)
+			set_source_files_properties( ${lib_sources} PROPERTIES LANGUAGE CXX )
+		endif()
+		add_library(open62541-object OBJECT ${lib_sources} ${lib_headers} ${exported_headers})
     target_include_directories(open62541-object PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
     add_custom_target(open62541-code-generation DEPENDS
@@ -1299,7 +1308,9 @@ else()
         set_source_files_properties(${PROJECT_BINARY_DIR}/src_generated/open62541/namespace0_generated.c
                                     PROPERTIES COMPILE_FLAGS "-fno-stack-protector -O0")
     endif()
-
+		if(MSVC)
+			set_source_files_properties( ${plugin_sources} PROPERTIES LANGUAGE CXX )
+		endif()
     add_library(open62541-plugins OBJECT ${plugin_sources} ${exported_headers})
     add_dependencies(open62541-plugins open62541-generator-types open62541-generator-transport open62541-generator-namespace)
     target_include_directories(open62541-plugins PRIVATE ${PROJECT_SOURCE_DIR}/plugins)

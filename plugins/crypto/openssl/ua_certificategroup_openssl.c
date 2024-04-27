@@ -449,6 +449,7 @@ UA_CertificateGroup_Verify(UA_CertificateGroup *certGroup,
     X509_STORE *store = NULL;
     CertContext *ctx = NULL;
     UA_StatusCode ret = UA_STATUSCODE_GOOD;
+    int opensslRet;
 
     if ((certGroup == NULL) || (certGroup->context == NULL)) {
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -487,7 +488,7 @@ UA_CertificateGroup_Verify(UA_CertificateGroup *certGroup,
     }
 
     X509_STORE_set_flags(store, 0);
-    int opensslRet = X509_STORE_CTX_init(storeCtx, store, certificateX509,
+    opensslRet = X509_STORE_CTX_init(storeCtx, store, certificateX509,
                                           ctx->skIssue);
     if(opensslRet != 1) {
         ret = UA_STATUSCODE_BADINTERNALERROR;

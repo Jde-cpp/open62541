@@ -1413,11 +1413,7 @@ browseSimplifiedBrowsePath(UA_Server *server, const UA_NodeId origin,
     UA_BrowsePathResult bpr;
     UA_BrowsePathResult_init(&bpr);
     if(browsePathSize > UA_MAX_TREE_RECURSE) {
-<<<<<<< HEAD
         UA_LOG_WARNING(server->config.logging, UA_LOGCATEGORY_SERVER,
-=======
-        UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_SERVER,
->>>>>>> a37511560 (c++20)
                        "Simplified Browse Path too long");
         bpr.statusCode = UA_STATUSCODE_BADINTERNALERROR;
         return bpr;
