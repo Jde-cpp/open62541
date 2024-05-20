@@ -927,8 +927,10 @@ responseGetEndpoints(UA_Client *client, void *userdata, UA_UInt32 requestId,
         /* SecurityPolicy available? */
         if(!getSecurityPolicy(client, endpoint->securityPolicyUri)) {
             UA_LOG_INFO(client->config.logging, UA_LOGCATEGORY_CLIENT,
-                        "Rejecting endpoint %lu: security policy not available",
-                        (long unsigned)i);
+                        "Rejecting endpoint %lu(%.*s): security policy not available",
+                        (long unsigned)i, 
+												(int)endpoint->securityPolicyUri.length,
+                					endpoint->securityPolicyUri.data);
             continue;
         }
 

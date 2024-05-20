@@ -95,7 +95,5 @@ Pipfile.lock
 
 # project local vim settings
 .vim/
-asan/*
-debug/*
-build/**
+.build/**
 
