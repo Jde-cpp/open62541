@@ -783,7 +783,7 @@ UA_CertificateUtils_verifyApplicationURI(UA_RuleHandling ruleHandling,
     }
 
     if(ret != UA_STATUSCODE_GOOD && ruleHandling == UA_RULEHANDLING_DEFAULT) {
-        UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+        UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, //todo use the logging of the certgroup
                        "The certificate's application URI could not be verified. StatusCode %s",
                        UA_StatusCode_name(ret));
         ret = UA_STATUSCODE_GOOD;
