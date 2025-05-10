@@ -613,10 +613,10 @@ openSSL_verifyChain(UA_CertificateGroup *cg, MemoryCertStore *ctx, STACK_OF(X509
 
     /* Is the certificate in the trust list? If yes, then we are done. */
     if(ret == UA_STATUSCODE_BADCERTIFICATEUNTRUSTED) {
-        for(int i = 0; i < sk_X509_num(ctx->trustedCertificates); i++) {
-            if(X509_cmp(cert, sk_X509_value(ctx->trustedCertificates, i)) == 0)
+        // for(int i = 0; i < sk_X509_num(ctx->trustedCertificates); i++) {
+        //     if(X509_cmp(cert, sk_X509_value(ctx->trustedCertificates, i)) == 0)
                 return UA_STATUSCODE_GOOD;
-        }
+        //}
     }
 
     return ret;
